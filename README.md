@@ -1,10 +1,14 @@
 # TYPO3 Official Docker Images
 
+[![Build and Push Docker Images](https://github.com/dkd-dobberkau/typo3-base/actions/workflows/build.yml/badge.svg)](https://github.com/dkd-dobberkau/typo3-base/actions/workflows/build.yml)
+
 Production-ready Docker images for TYPO3 CMS — Alpine Linux + Nginx + PHP-FPM.
+
+Multi-architecture support: `linux/amd64` + `linux/arm64` (Apple Silicon).
 
 ## Images
 
-### `typo3/base` — Production Base Image
+### `dkd-dobberkau/base` — Production Base Image
 
 A slim runtime image that provides PHP-FPM, Nginx, and all required PHP extensions for TYPO3. It does **not** contain TYPO3 itself — you build your project-specific image on top of it.
 
@@ -21,7 +25,7 @@ A slim runtime image that provides PHP-FPM, Nginx, and all required PHP extensio
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM ghcr.io/typo3/base:8.3-nginx AS base
+FROM ghcr.io/dkd-dobberkau/base:8.3-nginx AS base
 FROM composer:2 AS build
 
 WORKDIR /app
@@ -34,7 +38,7 @@ FROM base
 COPY --from=build --chown=typo3:typo3 /app /var/www/html
 ```
 
-### `typo3/demo` — Demo & Evaluation Image
+### `dkd-dobberkau/demo` — Demo & Evaluation Image
 
 Pre-installed TYPO3 for demos, evaluation, and onboarding. Includes a complete TYPO3 setup ready to start.
 
@@ -55,7 +59,21 @@ Pre-installed TYPO3 for demos, evaluation, and onboarding. Includes a complete T
 docker compose -f docker-compose.demo.yml up
 ```
 
-Open http://localhost:8080 — Backend at http://localhost:8080/typo3 (admin / Password1!)
+Open http://localhost:8080 — Backend at http://localhost:8080/typo3
+
+Admin credentials are randomly generated on first run. Check the setup container logs:
+
+```bash
+docker compose -f docker-compose.demo.yml logs setup
+```
+
+Or set your own via environment variables:
+
+```bash
+TYPO3_SETUP_ADMIN_USERNAME=admin \
+TYPO3_SETUP_ADMIN_PASSWORD=MySecurePass1! \
+docker compose -f docker-compose.demo.yml up
+```
 
 ## Environment Variables
 
@@ -101,17 +119,27 @@ Open http://localhost:8080 — Backend at http://localhost:8080/typo3 (admin / P
 | `SMTP_USERNAME` | — | SMTP username |
 | `SMTP_PASSWORD` | — | SMTP password |
 
+### Redis Cache Backend
+
+When `REDIS_HOST` is set, the demo image automatically configures TYPO3 cache backends:
+
+| Cache | Redis DB |
+|-------|----------|
+| Hash / Pages / Rootline | DB 0–2 |
+
+The `docker-compose.demo.yml` includes a Redis service pre-configured.
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  typo3/base                       │
+│                  dkd-dobberkau/base                       │
 │  Alpine Linux + Nginx + PHP-FPM + Extensions     │
 │  (no TYPO3 code — runtime environment only)      │
 └──────────┬────────────────────┬──────────────────┘
            │                    │
     ┌──────▼──────┐     ┌──────▼──────┐
-    │ typo3/demo  │     │ Your Image  │
+    │ dkd-dobberkau/demo  │     │ Your Image  │
     │ Pre-installed│     │ FROM base   │
     │ TYPO3 + Demo│     │ + your code │
     └─────────────┘     └─────────────┘
@@ -125,10 +153,10 @@ These images **complement** DDEV — they do not compete with it.
 |----------|-----------------|
 | Local development | **DDEV** |
 | Team development | **DDEV** |
-| CI/CD pipelines | **typo3/base** |
-| Demo & evaluation | **typo3/demo** |
-| Staging & production | **typo3/base** (with your project) |
-| Kubernetes / Cloud | **typo3/base** + Helm Charts |
+| CI/CD pipelines | **dkd-dobberkau/base** |
+| Demo & evaluation | **dkd-dobberkau/demo** |
+| Staging & production | **dkd-dobberkau/base** (with your project) |
+| Kubernetes / Cloud | **dkd-dobberkau/base** + Helm Charts |
 
 ## Included PHP Extensions
 
@@ -150,10 +178,10 @@ For production deployments, mount these paths:
 
 ```bash
 # Build base image
-docker build -f Dockerfile.base -t typo3/base:8.3-nginx --build-arg PHP_VERSION=8.3 .
+docker build -f Dockerfile.base -t dkd-dobberkau/base:8.3-nginx --build-arg PHP_VERSION=8.3 .
 
 # Build demo image (requires base image)
-docker build -f Dockerfile.demo -t typo3/demo:13 \
+docker build -f Dockerfile.demo -t dkd-dobberkau/demo:13 \
     --build-arg PHP_VERSION=8.3 \
     --build-arg TYPO3_VERSION=13 .
 
@@ -163,7 +191,7 @@ docker compose -f docker-compose.demo.yml up
 
 ## Contributing
 
-This project is maintained by the TYPO3 Association. Contributions are welcome.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development setup.
 
 Based on prior work by Martin Helmich (`docker-typo3`, `docker-typo3-cloud`).
 

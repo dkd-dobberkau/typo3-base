@@ -36,6 +36,6 @@
 
 ## Dokumentation
 
-- [ ] README aktualisieren — Redis, Zufallspasswort, v14 Support
-- [ ] SECURITY.md — Hinweise zu Credentials, Volumes, Netzwerk
-- [ ] CONTRIBUTING.md — Build-Anleitung, Entwickler-Setup
+- [x] README aktualisieren — Redis, Zufallspasswort, v14 Support, CI-Badge
+- [x] SECURITY.md — Hinweise zu Credentials, Volumes, Netzwerk
+- [x] CONTRIBUTING.md — Build-Anleitung, Entwickler-Setup
