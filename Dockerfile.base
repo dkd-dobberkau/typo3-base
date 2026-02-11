@@ -32,6 +32,9 @@ LABEL org.opencontainers.image.licenses="GPL-3.0-or-later"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Composer from official multi-stage image (pinned version)
+COPY --from=composer:2.9 /usr/bin/composer /usr/local/bin/composer
+
 # Install Sury PHP repository and all packages
 # hadolint ignore=DL3008
 RUN set -eux; \
@@ -67,10 +70,6 @@ RUN set -eux; \
         git \
         unzip \
     ; \
-    # Install Composer
-    curl -sS https://getcomposer.org/installer | php -- \
-        --install-dir=/usr/local/bin \
-        --filename=composer; \
     # Create application user
     useradd -m -u 1000 -s /bin/bash typo3; \
     # Create directory structure
