@@ -17,8 +17,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BASE_IMAGE_NAME: typo3/base
-  DEMO_IMAGE_NAME: typo3/demo
+  BASE_IMAGE_NAME: dkd-dobberkau/base
+  DEMO_IMAGE_NAME: dkd-dobberkau/demo
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -100,14 +100,14 @@ jobs:
           context: .
           file: Dockerfile.base
           load: true
-          tags: ghcr.io/typo3/base:8.3-nginx
+          tags: ghcr.io/dkd-dobberkau/base:8.3-nginx
           build-args: |
             PHP_VERSION=8.3
           cache-from: type=gha
 
       - name: Test PHP extensions
         run: |
-          IMAGE="ghcr.io/typo3/base:8.3-nginx"
+          IMAGE="ghcr.io/dkd-dobberkau/base:8.3-nginx"
           MODULES=$(docker run --rm --entrypoint php "$IMAGE" -m)
           for ext in gd intl opcache mysqli pdo_mysql pdo_pgsql redis apcu zip; do
             if echo "$MODULES" | grep -qi "$ext"; then
@@ -118,15 +118,15 @@ jobs:
           done
 
       - name: Test Composer
-        run: docker run --rm --entrypoint composer ghcr.io/typo3/base:8.3-nginx --version
+        run: docker run --rm --entrypoint composer ghcr.io/dkd-dobberkau/base:8.3-nginx --version
 
       - name: Test Nginx config
         run: |
-          docker run --rm --entrypoint sh ghcr.io/typo3/base:8.3-nginx \
+          docker run --rm --entrypoint sh ghcr.io/dkd-dobberkau/base:8.3-nginx \
             -c 'sed -i "s|\$TYPO3_CONTEXT|Production|g" /etc/nginx/http.d/default.conf && nginx -t'
 
       - name: Test GraphicsMagick
-        run: docker run --rm --entrypoint gm ghcr.io/typo3/base:8.3-nginx version | head -1
+        run: docker run --rm --entrypoint gm ghcr.io/dkd-dobberkau/base:8.3-nginx version | head -1
 
   # ---------------------------------------------------------------------------
   # Build Demo Image
@@ -221,7 +221,7 @@ jobs:
           context: .
           file: Dockerfile.base
           load: true
-          tags: ghcr.io/typo3/base:8.3-nginx
+          tags: ghcr.io/dkd-dobberkau/base:8.3-nginx
           build-args: |
             PHP_VERSION=8.3
           cache-from: type=gha
@@ -282,8 +282,8 @@ jobs:
     strategy:
       matrix:
         image:
-          - 'typo3/base:8.3-nginx'
-          - 'typo3/demo:13-php8.3'
+          - 'dkd-dobberkau/base:8.3-nginx'
+          - 'dkd-dobberkau/demo:13-php8.3'
 
     steps:
       - name: Run Trivy vulnerability scanner

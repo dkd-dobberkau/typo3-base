@@ -15,7 +15,7 @@ ARG TYPO3_VERSION=13
 # -----------------------------------------------------------------------------
 # Stage 1: Install TYPO3 via Composer
 # -----------------------------------------------------------------------------
-FROM ghcr.io/typo3/base:${PHP_VERSION}-nginx AS build
+FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-nginx AS build
 
 ARG TYPO3_VERSION=13
 
@@ -42,7 +42,7 @@ RUN set -eux; \
 # -----------------------------------------------------------------------------
 # Stage 2: Final demo image
 # -----------------------------------------------------------------------------
-FROM ghcr.io/typo3/base:${PHP_VERSION}-nginx
+FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-nginx
 
 ARG TYPO3_VERSION=13
 

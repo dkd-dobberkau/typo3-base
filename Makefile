@@ -4,7 +4,7 @@
 
 PHP_VERSION ?= 8.3
 TYPO3_VERSION ?= 13
-REGISTRY ?= ghcr.io/typo3
+REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 
 .PHONY: help build-base build-demo build-all demo up down clean test
