@@ -111,6 +111,9 @@ RUN set -eux; \
     php -m | grep -i intl; \
     php -m | grep -i opcache
 
+# TYPO3 environment-based configuration (loaded at runtime via getenv)
+COPY base/config/typo3/additional.php /usr/local/share/typo3/additional.php
+
 # Environment variables for runtime configuration
 ENV TYPO3_CONTEXT=Production \
     PHP_MEMORY_LIMIT=512M \
