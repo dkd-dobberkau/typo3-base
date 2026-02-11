@@ -31,6 +31,7 @@
 - [ ] Production Compose — ohne Demo-Setup, fuer echte Projekte mit eigenem Code
 - [x] Mailpit — Mail-Testing im Demo-Setup (SMTP + Web-UI)
 - [ ] TYPO3 Introduction Package als Demo-Content Option
+- [ ] S3/Garage Storage — FAL-Driver fuer S3-kompatiblen Object Storage (fileadmin auf S3/Garage statt lokalem Volume)
 - [ ] PHP 8.5 Support — sobald Sury-Pakete verfuegbar
 
 ## Deployment
