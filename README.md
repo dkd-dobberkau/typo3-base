@@ -25,10 +25,8 @@ Two variants are available:
 | `8.2-fpm` | 8.2 | FPM | |
 | `8.3-nginx` | 8.3 | Nginx | **Recommended** |
 | `8.3-fpm` | 8.3 | FPM | |
-| `8.4-nginx` | 8.4 | Nginx | |
+| `8.4-nginx` | 8.4 | Nginx | Latest PHP |
 | `8.4-fpm` | 8.4 | FPM | |
-| `8.5-nginx` | 8.5 | Nginx | Latest PHP |
-| `8.5-fpm` | 8.5 | FPM | |
 | `latest` | 8.3 | Nginx | Alias for `8.3-nginx` |
 
 **Usage — Nginx variant (all-in-one):**
@@ -70,7 +68,6 @@ Pre-installed TYPO3 for demos, evaluation, and onboarding. Includes a complete T
 | `13-php8.4` | 13 LTS | 8.4 | |
 | `14` | 14.x | 8.3 | Sprint releases |
 | `14-php8.4` | 14.x | 8.4 | |
-| `14-php8.5` | 14.x | 8.5 | |
 | `latest` | 13 LTS | 8.3 | Alias for `13` |
 
 **Quick start:**
@@ -258,7 +255,6 @@ make test-fpm    # fpm variant
 
 # Build with specific versions
 make build-base PHP_VERSION=8.4
-make build-base-fpm PHP_VERSION=8.5
 
 # Run demo
 make demo

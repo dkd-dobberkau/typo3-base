@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.2', '8.3', '8.4', '8.5']
+        php-version: ['8.2', '8.3', '8.4']
         variant: ['nginx', 'fpm']
 
     steps:
@@ -186,8 +186,6 @@ jobs:
             php-version: '8.3'
           - typo3-version: '14'
             php-version: '8.4'
-          - typo3-version: '14'
-            php-version: '8.5'
 
     steps:
       - name: Checkout

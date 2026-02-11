@@ -50,19 +50,16 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
 	$(MAKE) build-base PHP_VERSION=8.2
 	$(MAKE) build-base PHP_VERSION=8.3
 	$(MAKE) build-base PHP_VERSION=8.4
-	$(MAKE) build-base PHP_VERSION=8.5
 	@echo "=== Building Base Images (fpm) ==="
 	$(MAKE) build-base-fpm PHP_VERSION=8.2
 	$(MAKE) build-base-fpm PHP_VERSION=8.3
 	$(MAKE) build-base-fpm PHP_VERSION=8.4
-	$(MAKE) build-base-fpm PHP_VERSION=8.5
 	@echo "=== Building Demo Images ==="
 	$(MAKE) build-demo PHP_VERSION=8.2 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=14
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=14
-	$(MAKE) build-demo PHP_VERSION=8.5 TYPO3_VERSION=14
 
 # ---------------------------------------------------------------------------
 # Run
