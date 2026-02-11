@@ -1,3 +1,4 @@
 *.tar.gz
 .codegraph/
+.playwright-mcp/
 CLAUDE.md

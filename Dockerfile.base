@@ -142,18 +142,7 @@ COPY base/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Environment variables for runtime configuration
-ENV TYPO3_DB_DRIVER=mysqli \
-    TYPO3_DB_HOST=db \
-    TYPO3_DB_PORT=3306 \
-    TYPO3_DB_NAME=typo3 \
-    TYPO3_DB_USERNAME=typo3 \
-    TYPO3_DB_PASSWORD="" \
-    TYPO3_SETUP_ADMIN_USERNAME=admin \
-    TYPO3_SETUP_ADMIN_PASSWORD="" \
-    TYPO3_SETUP_ADMIN_EMAIL="" \
-    TYPO3_SERVER_TYPE=apache \
-    TYPO3_BASE_URL="http://localhost" \
-    TYPO3_CONTEXT=Production \
+ENV TYPO3_CONTEXT=Production \
     PHP_MEMORY_LIMIT=512M \
     PHP_MAX_EXECUTION_TIME=240 \
     PHP_UPLOAD_MAX_FILESIZE=32M \
@@ -165,7 +154,7 @@ WORKDIR /var/www/html
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost/typo3/install.php || curl -f http://localhost/ || exit 1
+    CMD curl -sf http://localhost/healthz || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["supervisord", "-c", "/etc/supervisord.conf"]
