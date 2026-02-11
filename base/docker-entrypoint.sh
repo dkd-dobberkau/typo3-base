@@ -6,9 +6,15 @@ set -e
 # Handles environment variable substitution, permissions, and initial setup
 # =============================================================================
 
+if command -v nginx > /dev/null 2>&1; then
+    VARIANT="Nginx"
+else
+    VARIANT="FPM-only"
+fi
+
 echo "================================================"
 echo " TYPO3 Official Docker Image"
-echo " PHP $(php -r 'echo PHP_VERSION;') | Nginx | Alpine"
+echo " PHP $(php -r 'echo PHP_VERSION;') | ${VARIANT} | Debian"
 echo "================================================"
 
 # -----------------------------------------------------------------------------
@@ -27,12 +33,15 @@ envsubst_php() {
     fi
 }
 
-envsubst_php /usr/local/etc/php/conf.d/typo3.ini
+envsubst_php "/etc/php/${PHP_VERSION}/fpm/conf.d/99-typo3.ini"
+envsubst_php "/etc/php/${PHP_VERSION}/cli/conf.d/99-typo3.ini"
 
 # -----------------------------------------------------------------------------
-# Set TYPO3_CONTEXT in Nginx
+# Set TYPO3_CONTEXT in Nginx (only for nginx variant)
 # -----------------------------------------------------------------------------
-sed -i "s|\$TYPO3_CONTEXT|${TYPO3_CONTEXT:-Production}|g" /etc/nginx/http.d/default.conf
+if [ -f /etc/nginx/conf.d/default.conf ]; then
+    sed -i "s|\$TYPO3_CONTEXT|${TYPO3_CONTEXT:-Production}|g" /etc/nginx/conf.d/default.conf
+fi
 
 # -----------------------------------------------------------------------------
 # Ensure directory permissions

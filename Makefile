@@ -7,7 +7,7 @@ TYPO3_VERSION ?= 13
 REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 
-.PHONY: help build-base build-demo build-all demo up down clean test
+.PHONY: help build-base build-base-fpm build-demo build-all demo up down clean test test-fpm
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -17,9 +17,17 @@ help: ## Show this help
 # Build
 # ---------------------------------------------------------------------------
 
-build-base: ## Build the base image
+build-base: ## Build the base image (nginx variant)
 	docker build -f Dockerfile.base \
+		--target nginx \
 		-t $(REGISTRY)/base:$(PHP_VERSION)-nginx \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		.
+
+build-base-fpm: ## Build the base image (fpm-only variant)
+	docker build -f Dockerfile.base \
+		--target fpm \
+		-t $(REGISTRY)/base:$(PHP_VERSION)-fpm \
 		--build-arg PHP_VERSION=$(PHP_VERSION) \
 		.
 
@@ -31,17 +39,21 @@ build-demo: ## Build the demo image (requires base)
 		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
 		.
 
-build-all: build-base build-demo ## Build both images
+build-all: build-base build-base-fpm build-demo ## Build all images
 
 # ---------------------------------------------------------------------------
 # Build Matrix (all combinations)
 # ---------------------------------------------------------------------------
 
-matrix: ## Build the full matrix (all PHP + TYPO3 versions)
-	@echo "=== Building Base Images ==="
+matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
+	@echo "=== Building Base Images (nginx) ==="
 	$(MAKE) build-base PHP_VERSION=8.2
 	$(MAKE) build-base PHP_VERSION=8.3
 	$(MAKE) build-base PHP_VERSION=8.4
+	@echo "=== Building Base Images (fpm) ==="
+	$(MAKE) build-base-fpm PHP_VERSION=8.2
+	$(MAKE) build-base-fpm PHP_VERSION=8.3
+	$(MAKE) build-base-fpm PHP_VERSION=8.4
 	@echo "=== Building Demo Images ==="
 	$(MAKE) build-demo PHP_VERSION=8.2 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=13
@@ -67,7 +79,7 @@ down: ## Stop demo
 # Test
 # ---------------------------------------------------------------------------
 
-test: build-base ## Run smoke tests on base image
+test: build-base ## Run smoke tests on base image (nginx variant)
 	@echo "=== Testing PHP extensions ==="
 	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx -m | grep -q gd && echo "✓ gd"
 	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx -m | grep -q intl && echo "✓ intl"
@@ -81,10 +93,27 @@ test: build-base ## Run smoke tests on base image
 	@echo "=== Testing Composer ==="
 	docker run --rm --entrypoint composer $(REGISTRY)/base:$(PHP_VERSION)-nginx --version
 	@echo "=== Testing Nginx ==="
-	docker run --rm --entrypoint sh $(REGISTRY)/base:$(PHP_VERSION)-nginx -c 'sed -i "s|\$$TYPO3_CONTEXT|Production|g" /etc/nginx/http.d/default.conf && nginx -t'
+	docker run --rm --entrypoint sh $(REGISTRY)/base:$(PHP_VERSION)-nginx -c 'sed -i "s|\$$TYPO3_CONTEXT|Production|g" /etc/nginx/conf.d/default.conf && nginx -t'
 	@echo "=== Testing GraphicsMagick ==="
 	docker run --rm --entrypoint gm $(REGISTRY)/base:$(PHP_VERSION)-nginx version | head -1
-	@echo "=== All tests passed ==="
+	@echo "=== All nginx variant tests passed ==="
+
+test-fpm: build-base-fpm ## Run smoke tests on base image (fpm-only variant)
+	@echo "=== Testing PHP extensions ==="
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q gd && echo "✓ gd"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q intl && echo "✓ intl"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -qi opcache && echo "✓ opcache"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q mysqli && echo "✓ mysqli"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q pdo_mysql && echo "✓ pdo_mysql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q pdo_pgsql && echo "✓ pdo_pgsql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q redis && echo "✓ redis"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q apcu && echo "✓ apcu"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm -m | grep -q zip && echo "✓ zip"
+	@echo "=== Testing Composer ==="
+	docker run --rm --entrypoint composer $(REGISTRY)/base:$(PHP_VERSION)-fpm --version
+	@echo "=== Testing GraphicsMagick ==="
+	docker run --rm --entrypoint gm $(REGISTRY)/base:$(PHP_VERSION)-fpm version | head -1
+	@echo "=== All fpm variant tests passed ==="
 
 # ---------------------------------------------------------------------------
 # Cleanup
@@ -93,5 +122,6 @@ test: build-base ## Run smoke tests on base image
 clean: ## Remove all built images and volumes
 	docker compose -f docker-compose.demo.yml down -v --rmi local 2>/dev/null || true
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-nginx 2>/dev/null || true
+	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-fpm 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-php$(PHP_VERSION) 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION) 2>/dev/null || true
