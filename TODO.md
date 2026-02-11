@@ -12,14 +12,16 @@
 
 ## Testing & Quality
 
-- [ ] `make test` nach allen Refactorings laufen lassen
-- [ ] GitHub Actions CI/CD — automatische Builds + Tests bei Push/PR
-- [ ] Integration-Tests — Demo hochfahren, Login prüfen, Health-Endpoint testen
-- [ ] Hadolint / Docker Scout — Dockerfile Linting + Vulnerability Scan
+- [x] `make test` nach allen Refactorings laufen lassen
+- [x] GitHub Actions CI/CD — automatische Builds + Tests bei Push/PR
+- [x] Integration-Tests — Demo hochfahren, Login prüfen, Health-Endpoint testen
+- [x] Trivy Security-Scan — Vulnerability Scan der gebauten Images
+- [ ] Hadolint — Dockerfile Linting in die Pipeline einbauen
+- [ ] GHA-Cache optimieren — Multi-Arch Builds beschleunigen
 
 ## Features
 
-- [ ] Multi-Arch Builds (linux/amd64 + linux/arm64) — Apple Silicon + Linux Server
+- [x] Multi-Arch Builds (linux/amd64 + linux/arm64) — Apple Silicon + Linux Server
 - [ ] PostgreSQL Compose-Variante — Base Image hat bereits pdo_pgsql
 - [ ] Production Compose — ohne Demo-Setup, fuer echte Projekte mit eigenem Code
 - [ ] SMTP/Mailhog Service — Mail-Testing im Demo-Setup
@@ -29,7 +31,7 @@
 
 - [ ] Traefik Reverse-Proxy mit SSL (docker-compose.prod.yml)
 - [ ] Kubernetes Helm Chart
-- [ ] GHCR Publishing — Images in die GitHub Container Registry pushen
+- [x] GHCR Publishing — Images in die GitHub Container Registry pushen
 - [ ] Docker Hub Mirror — offizielle typo3/ Images
 
 ## Dokumentation
