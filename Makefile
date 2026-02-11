@@ -55,7 +55,7 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions)
 
 demo: build-all ## Build and start the demo
 	PHP_VERSION=$(PHP_VERSION) TYPO3_VERSION=$(TYPO3_VERSION) HTTP_PORT=$(HTTP_PORT) \
-		docker compose -f docker-compose.demo.yml up
+		docker compose -f docker-compose.demo.yml up --build
 
 up: ## Start demo (without rebuild)
 	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.demo.yml up -d
