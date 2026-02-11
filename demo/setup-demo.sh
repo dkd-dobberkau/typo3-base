@@ -15,6 +15,16 @@ echo "[demo-setup] Database is ready"
 
 cd /var/www/html
 
+# Generate admin password if not provided
+ADMIN_USERNAME="${TYPO3_SETUP_ADMIN_USERNAME:-admin}"
+ADMIN_EMAIL="${TYPO3_SETUP_ADMIN_EMAIL:-admin@example.com}"
+if [ -n "$TYPO3_SETUP_ADMIN_PASSWORD" ]; then
+    ADMIN_PASSWORD="$TYPO3_SETUP_ADMIN_PASSWORD"
+else
+    ADMIN_PASSWORD="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)#T3!"
+    echo "[demo-setup] Generated random admin password"
+fi
+
 # Ensure directories are writable by typo3
 chown -R typo3:typo3 /var/www/html/var /var/www/html/public/fileadmin /var/www/html/config
 
@@ -28,9 +38,9 @@ su -s /bin/sh typo3 -c "
         --dbname='${TYPO3_DB_NAME}' \
         --username='${TYPO3_DB_USERNAME}' \
         --password='${TYPO3_DB_PASSWORD}' \
-        --admin-username='${TYPO3_SETUP_ADMIN_USERNAME:-admin}' \
-        --admin-user-password='${TYPO3_SETUP_ADMIN_PASSWORD:-Password1!}' \
-        --admin-email='${TYPO3_SETUP_ADMIN_EMAIL:-admin@example.com}' \
+        --admin-username='${ADMIN_USERNAME}' \
+        --admin-user-password='${ADMIN_PASSWORD}' \
+        --admin-email='${ADMIN_EMAIL}' \
         --no-interaction \
         --force || true
 
@@ -41,11 +51,26 @@ su -s /bin/sh typo3 -c "
     vendor/bin/typo3 cache:flush || true
 "
 
+# Write credentials file
+CREDENTIALS_FILE="/var/www/html/var/credentials.txt"
+cat > "$CREDENTIALS_FILE" <<EOF
+TYPO3 Demo Credentials
+======================
+Backend URL:  ${TYPO3_BASE_URL:-http://localhost:8080}/typo3
+Username:     ${ADMIN_USERNAME}
+Password:     ${ADMIN_PASSWORD}
+Generated:    $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+EOF
+chown typo3:typo3 "$CREDENTIALS_FILE"
+chmod 600 "$CREDENTIALS_FILE"
+
 echo "================================================"
 echo " TYPO3 Demo is ready!"
 echo ""
 echo " Frontend:  ${TYPO3_BASE_URL:-http://localhost:8080}"
 echo " Backend:   ${TYPO3_BASE_URL:-http://localhost:8080}/typo3"
-echo " Username:  ${TYPO3_SETUP_ADMIN_USERNAME:-admin}"
-echo " Password:  ${TYPO3_SETUP_ADMIN_PASSWORD:-Password1!}"
+echo " Username:  ${ADMIN_USERNAME}"
+echo " Password:  ${ADMIN_PASSWORD}"
+echo ""
+echo " Credentials saved to: ${CREDENTIALS_FILE}"
 echo "================================================"
