@@ -34,9 +34,6 @@ su -s /bin/sh typo3 -c "
         --no-interaction \
         --force || true
 
-    echo '[demo-setup] Running database schema update...'
-    vendor/bin/typo3 database:updateschema || true
-
     echo '[demo-setup] Setting up extensions...'
     vendor/bin/typo3 extension:setup || true
 
