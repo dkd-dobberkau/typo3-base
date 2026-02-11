@@ -56,6 +56,7 @@ done
 ADDITIONAL_CONFIG="/var/www/html/config/system/additional.php"
 if [ ! -f "$ADDITIONAL_CONFIG" ] && [ -n "$TYPO3_DB_HOST" ]; then
     mkdir -p "$(dirname "$ADDITIONAL_CONFIG")"
+    chown -R typo3:typo3 "$(dirname "$ADDITIONAL_CONFIG")"
 
     cat > "$ADDITIONAL_CONFIG" <<EOPHP
 <?php
@@ -135,7 +136,7 @@ if [ "$1" = "typo3-setup" ]; then
         --username=${TYPO3_DB_USERNAME} \
         --password=${TYPO3_DB_PASSWORD} \
         --admin-username=${TYPO3_SETUP_ADMIN_USERNAME:-admin} \
-        --admin-password=${TYPO3_SETUP_ADMIN_PASSWORD} \
+        --admin-user-password=${TYPO3_SETUP_ADMIN_PASSWORD} \
         --admin-email=${TYPO3_SETUP_ADMIN_EMAIL:-admin@example.com} \
         --no-interaction"
     echo "[entrypoint] TYPO3 setup complete"

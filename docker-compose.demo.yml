@@ -34,6 +34,7 @@ services:
     volumes:
       - fileadmin:/var/www/html/public/fileadmin
       - typo3var:/var/www/html/var
+      - typo3config:/var/www/html/config
     depends_on:
       db:
         condition: service_healthy
@@ -62,6 +63,7 @@ services:
     volumes:
       - fileadmin:/var/www/html/public/fileadmin
       - typo3var:/var/www/html/var
+      - typo3config:/var/www/html/config
     depends_on:
       db:
         condition: service_healthy
@@ -90,3 +92,4 @@ volumes:
   db-data:
   fileadmin:
   typo3var:
+  typo3config:

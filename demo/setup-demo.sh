@@ -15,8 +15,8 @@ echo "[demo-setup] Database is ready"
 
 cd /var/www/html
 
-# Ensure var directory is writable by typo3
-chown -R typo3:typo3 /var/www/html/var /var/www/html/public/fileadmin
+# Ensure directories are writable by typo3
+chown -R typo3:typo3 /var/www/html/var /var/www/html/public/fileadmin /var/www/html/config
 
 # Run all TYPO3 commands as typo3 user
 echo "[demo-setup] Running TYPO3 setup..."
@@ -29,7 +29,7 @@ su -s /bin/sh typo3 -c "
         --username='${TYPO3_DB_USERNAME}' \
         --password='${TYPO3_DB_PASSWORD}' \
         --admin-username='${TYPO3_SETUP_ADMIN_USERNAME:-admin}' \
-        --admin-password='${TYPO3_SETUP_ADMIN_PASSWORD:-Password1!}' \
+        --admin-user-password='${TYPO3_SETUP_ADMIN_PASSWORD:-Password1!}' \
         --admin-email='${TYPO3_SETUP_ADMIN_EMAIL:-admin@example.com}' \
         --no-interaction \
         --force || true
