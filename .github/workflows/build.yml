@@ -271,6 +271,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-base, build-demo]
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
 
     strategy:
       matrix:
@@ -279,6 +283,16 @@ jobs:
           - 'dkd-dobberkau/demo:13-php8.3'
 
     steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: docker pull ${{ env.REGISTRY }}/${{ matrix.image }}
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
