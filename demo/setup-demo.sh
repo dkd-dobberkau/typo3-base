@@ -51,6 +51,16 @@ su -s /bin/sh typo3 -c "
     vendor/bin/typo3 cache:flush || true
 "
 
+# Configure SMTP mail transport if SMTP_HOST is set
+if [ -n "$SMTP_HOST" ]; then
+    echo "[demo-setup] Configuring SMTP mail transport (${SMTP_HOST}:${SMTP_PORT:-1025})..."
+    su -s /bin/sh typo3 -c "
+        vendor/bin/typo3 configuration:set MAIL/transport smtp || true
+        vendor/bin/typo3 configuration:set MAIL/transport_smtp_server '${SMTP_HOST}:${SMTP_PORT:-1025}' || true
+    "
+    echo "[demo-setup] SMTP configured"
+fi
+
 # Write credentials file
 CREDENTIALS_FILE="/var/www/html/var/credentials.txt"
 cat > "$CREDENTIALS_FILE" <<EOF
@@ -73,4 +83,7 @@ echo " Username:  ${ADMIN_USERNAME}"
 echo " Password:  ${ADMIN_PASSWORD}"
 echo ""
 echo " Credentials saved to: ${CREDENTIALS_FILE}"
+if [ -n "$SMTP_HOST" ]; then
+echo " Mailpit:   http://localhost:8025"
+fi
 echo "================================================"

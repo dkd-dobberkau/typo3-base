@@ -22,6 +22,26 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # Lint Dockerfiles
+  # ---------------------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile.base
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.base
+
+      - name: Lint Dockerfile.demo
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.demo
+
+  # ---------------------------------------------------------------------------
   # Build Base Image
   # ---------------------------------------------------------------------------
   build-base:
@@ -77,8 +97,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             PHP_VERSION=${{ matrix.php-version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_NAME }}:buildcache-${{ matrix.php-version }}
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2},mode=max', env.REGISTRY, env.BASE_IMAGE_NAME, matrix.php-version) || 'type=gha,mode=max' }}
 
   # ---------------------------------------------------------------------------
   # Smoke Tests (Base Image)
@@ -198,8 +220,10 @@ jobs:
           build-args: |
             PHP_VERSION=${{ matrix.php-version }}
             TYPO3_VERSION=${{ matrix.typo3-version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.DEMO_IMAGE_NAME }}:buildcache-${{ matrix.typo3-version }}-php${{ matrix.php-version }}
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2}-php{3},mode=max', env.REGISTRY, env.DEMO_IMAGE_NAME, matrix.typo3-version, matrix.php-version) || 'type=gha,mode=max' }}
 
   # ---------------------------------------------------------------------------
   # Integration Tests (Demo Stack)

@@ -59,7 +59,7 @@ Pre-installed TYPO3 for demos, evaluation, and onboarding. Includes a complete T
 docker compose -f docker-compose.demo.yml up
 ```
 
-Open http://localhost:8080 — Backend at http://localhost:8080/typo3
+Open http://localhost:8080 — Backend at http://localhost:8080/typo3 — Mailpit at http://localhost:8025
 
 Admin credentials are randomly generated on first run. Check the setup container logs:
 

@@ -16,15 +16,15 @@
 - [x] GitHub Actions CI/CD — automatische Builds + Tests bei Push/PR
 - [x] Integration-Tests — Demo hochfahren, Login prüfen, Health-Endpoint testen
 - [x] Trivy Security-Scan — Vulnerability Scan der gebauten Images
-- [ ] Hadolint — Dockerfile Linting in die Pipeline einbauen
-- [ ] GHA-Cache optimieren — Multi-Arch Builds beschleunigen
+- [x] Hadolint — Dockerfile Linting in die Pipeline einbauen
+- [x] GHA-Cache optimieren — Registry-Cache für Multi-Arch Builds
 
 ## Features
 
 - [x] Multi-Arch Builds (linux/amd64 + linux/arm64) — Apple Silicon + Linux Server
 - [ ] PostgreSQL Compose-Variante — Base Image hat bereits pdo_pgsql
 - [ ] Production Compose — ohne Demo-Setup, fuer echte Projekte mit eigenem Code
-- [ ] SMTP/Mailhog Service — Mail-Testing im Demo-Setup
+- [x] Mailpit — Mail-Testing im Demo-Setup (SMTP + Web-UI)
 - [ ] TYPO3 Introduction Package als Demo-Content Option
 
 ## Deployment
