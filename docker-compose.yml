@@ -1,0 +1,73 @@
+# =============================================================================
+# TYPO3 Base Image — Example Docker Compose for agency projects
+#
+# This shows how to use the base image with your own Composer-based project.
+# Copy this to your project and adjust the Dockerfile.
+#
+# Usage:
+#   docker compose up
+# =============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Your project Dockerfile should look like:
+      #
+      #   FROM ghcr.io/typo3/base:8.3-nginx AS base
+      #   FROM composer:2 AS build
+      #   WORKDIR /app
+      #   COPY composer.json composer.lock ./
+      #   RUN composer install --no-dev --prefer-dist --optimize-autoloader
+      #   COPY . .
+      #   FROM base
+      #   COPY --from=build --chown=typo3:typo3 /app /var/www/html
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      TYPO3_CONTEXT: "Production"
+      TYPO3_DB_HOST: "db"
+      TYPO3_DB_PORT: "3306"
+      TYPO3_DB_NAME: "typo3"
+      TYPO3_DB_USERNAME: "typo3"
+      TYPO3_DB_PASSWORD: "${TYPO3_DB_PASSWORD}"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+    volumes:
+      - fileadmin:/var/www/html/public/fileadmin
+      - typo3var:/var/www/html/var
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+      MARIADB_DATABASE: "typo3"
+      MARIADB_USER: "typo3"
+      MARIADB_PASSWORD: "${TYPO3_DB_PASSWORD}"
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  fileadmin:
+  typo3var:

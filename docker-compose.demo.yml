@@ -1,0 +1,92 @@
+# =============================================================================
+# TYPO3 Demo — Docker Compose
+#
+# Quick start:
+#   docker compose -f docker-compose.demo.yml up
+#
+# Then visit: http://localhost:8080
+# Backend:   http://localhost:8080/typo3
+# Login:     admin / Password1!
+# =============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      args:
+        PHP_VERSION: "${PHP_VERSION:-8.3}"
+        TYPO3_VERSION: "${TYPO3_VERSION:-13}"
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      TYPO3_CONTEXT: "Production"
+      TYPO3_DB_DRIVER: "mysqli"
+      TYPO3_DB_HOST: "db"
+      TYPO3_DB_PORT: "3306"
+      TYPO3_DB_NAME: "typo3"
+      TYPO3_DB_USERNAME: "typo3"
+      TYPO3_DB_PASSWORD: "typo3"
+      TYPO3_SETUP_ADMIN_USERNAME: "admin"
+      TYPO3_SETUP_ADMIN_PASSWORD: "Password1!"
+      TYPO3_SETUP_ADMIN_EMAIL: "admin@example.com"
+      TYPO3_BASE_URL: "http://localhost:${HTTP_PORT:-8080}"
+    volumes:
+      - fileadmin:/var/www/html/public/fileadmin
+      - typo3var:/var/www/html/var
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Initial setup container (runs once, then exits)
+  setup:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      args:
+        PHP_VERSION: "${PHP_VERSION:-8.3}"
+        TYPO3_VERSION: "${TYPO3_VERSION:-13}"
+    entrypoint: ["/usr/local/bin/setup-demo"]
+    environment:
+      TYPO3_DB_DRIVER: "mysqli"
+      TYPO3_DB_HOST: "db"
+      TYPO3_DB_PORT: "3306"
+      TYPO3_DB_NAME: "typo3"
+      TYPO3_DB_USERNAME: "typo3"
+      TYPO3_DB_PASSWORD: "typo3"
+      TYPO3_SETUP_ADMIN_USERNAME: "admin"
+      TYPO3_SETUP_ADMIN_PASSWORD: "Password1!"
+      TYPO3_SETUP_ADMIN_EMAIL: "admin@example.com"
+      TYPO3_BASE_URL: "http://localhost:${HTTP_PORT:-8080}"
+    volumes:
+      - fileadmin:/var/www/html/public/fileadmin
+      - typo3var:/var/www/html/var
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: "root"
+      MARIADB_DATABASE: "typo3"
+      MARIADB_USER: "typo3"
+      MARIADB_PASSWORD: "typo3"
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  fileadmin:
+  typo3var:

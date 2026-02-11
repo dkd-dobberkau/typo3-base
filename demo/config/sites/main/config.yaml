@@ -1,0 +1,21 @@
+base: /
+languages:
+  -
+    title: English
+    enabled: true
+    languageId: 0
+    base: /
+    locale: en_US.UTF-8
+    navigationTitle: English
+    flag: us
+  -
+    title: Deutsch
+    enabled: true
+    languageId: 1
+    base: /de/
+    locale: de_DE.UTF-8
+    navigationTitle: Deutsch
+    flag: de
+    fallbackType: strict
+rootPageId: 1
+websiteTitle: 'TYPO3 Demo'

@@ -1,0 +1,72 @@
+# =============================================================================
+# TYPO3 Demo Image
+# Pre-installed TYPO3 with ready-to-run demo content
+#
+# Usage:
+#   docker compose -f docker-compose.demo.yml up
+#   # or standalone with external database:
+#   docker run -p 8080:80 -e TYPO3_DB_HOST=... ghcr.io/typo3/demo:13
+#
+# =============================================================================
+
+ARG PHP_VERSION=8.3
+ARG TYPO3_VERSION=13
+
+# -----------------------------------------------------------------------------
+# Stage 1: Install TYPO3 via Composer
+# -----------------------------------------------------------------------------
+FROM ghcr.io/typo3/base:${PHP_VERSION}-nginx AS build
+
+ARG TYPO3_VERSION=13
+
+USER typo3
+WORKDIR /var/www/html
+
+# Create Composer project
+RUN set -eux; \
+    composer create-project \
+        "typo3/cms-base-distribution:^${TYPO3_VERSION}" \
+        /tmp/typo3-build \
+        --no-interaction \
+        --no-dev \
+        --prefer-dist \
+    ; \
+    # Copy built project to working directory
+    cp -a /tmp/typo3-build/. /var/www/html/; \
+    rm -rf /tmp/typo3-build; \
+    # Warm up class loader
+    composer dump-autoload --optimize --no-dev; \
+    # Cleanup
+    rm -rf /var/www/html/var/cache/*
+
+# -----------------------------------------------------------------------------
+# Stage 2: Final demo image
+# -----------------------------------------------------------------------------
+FROM ghcr.io/typo3/base:${PHP_VERSION}-nginx
+
+ARG TYPO3_VERSION=13
+
+LABEL org.opencontainers.image.title="TYPO3 Demo Image"
+LABEL org.opencontainers.image.description="Ready-to-run TYPO3 ${TYPO3_VERSION} demo with pre-installed content"
+
+# Copy the built TYPO3 project
+COPY --from=build --chown=typo3:typo3 /var/www/html /var/www/html
+
+# Copy demo-specific site configuration
+COPY demo/config/sites/main/config.yaml /var/www/html/config/sites/main/config.yaml
+
+# Copy demo setup script
+COPY demo/setup-demo.sh /usr/local/bin/setup-demo
+RUN chmod +x /usr/local/bin/setup-demo
+
+# Default environment for demo mode
+ENV TYPO3_CONTEXT=Production \
+    TYPO3_DB_HOST=db \
+    TYPO3_DB_PORT=3306 \
+    TYPO3_DB_NAME=typo3 \
+    TYPO3_DB_USERNAME=typo3 \
+    TYPO3_DB_PASSWORD=typo3 \
+    TYPO3_SETUP_ADMIN_USERNAME=admin \
+    TYPO3_SETUP_ADMIN_PASSWORD=Password1! \
+    TYPO3_SETUP_ADMIN_EMAIL=admin@example.com \
+    TYPO3_BASE_URL="http://localhost:8080"

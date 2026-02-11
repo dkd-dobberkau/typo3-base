@@ -1,0 +1,171 @@
+# =============================================================================
+# TYPO3 Official Base Image
+# Alpine + Nginx + PHP-FPM — Production-ready, Composer-based
+#
+# This image does NOT contain TYPO3 itself. It provides the runtime environment.
+# Build your project image on top of this:
+#
+#   FROM ghcr.io/typo3/base:8.3-nginx
+#   COPY --from=build /app /var/www/html
+#
+# Inspired by shopware/docker-base and martin-helmich/docker-typo3-cloud
+# =============================================================================
+
+ARG PHP_VERSION=8.3
+
+# -----------------------------------------------------------------------------
+# Stage 1: PHP-FPM base with all TYPO3-required extensions
+# -----------------------------------------------------------------------------
+FROM php:${PHP_VERSION}-fpm-alpine AS base
+
+LABEL maintainer="TYPO3 Association <info@typo3.org>"
+LABEL org.opencontainers.image.title="TYPO3 Base Image"
+LABEL org.opencontainers.image.description="Production-ready base image for Composer-based TYPO3 projects"
+LABEL org.opencontainers.image.vendor="TYPO3 Association"
+LABEL org.opencontainers.image.source="https://github.com/typo3/docker"
+LABEL org.opencontainers.image.licenses="GPL-3.0-or-later"
+
+# Build dependencies (removed after extension compilation)
+RUN set -eux; \
+    apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        freetype-dev \
+        icu-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        libwebp-dev \
+        libxml2-dev \
+        libzip-dev \
+        oniguruma-dev \
+        postgresql-dev \
+    ; \
+    # Configure and install PHP extensions required by TYPO3
+    docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    ; \
+    docker-php-ext-install -j"$(nproc)" \
+        gd \
+        intl \
+        mbstring \
+        mysqli \
+        opcache \
+        pdo_mysql \
+        pdo_pgsql \
+        pgsql \
+        xml \
+        zip \
+    ; \
+    # Install APCu for caching
+    pecl install apcu; \
+    docker-php-ext-enable apcu; \
+    # Install Redis extension
+    pecl install redis; \
+    docker-php-ext-enable redis; \
+    # Cleanup build dependencies
+    apk del --no-network .build-deps; \
+    rm -rf /tmp/pear; \
+    # Verify extensions
+    php -m | grep -i gd; \
+    php -m | grep -i intl; \
+    php -m | grep -i opcache
+
+# Runtime dependencies
+RUN set -eux; \
+    apk add --no-cache \
+        # Required libraries for PHP extensions
+        freetype \
+        icu-libs \
+        libjpeg-turbo \
+        libpng \
+        libwebp \
+        libzip \
+        libxml2 \
+        oniguruma \
+        libpq \
+        # Image processing (TYPO3 requirement)
+        graphicsmagick \
+        # Composer
+        curl \
+        git \
+        unzip \
+        # Nginx
+        nginx \
+        # Supervisor to run Nginx + PHP-FPM
+        supervisor \
+        # Shadow for usermod/groupmod
+        shadow \
+    ; \
+    # Install Composer
+    curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin \
+        --filename=composer \
+    ; \
+    # Create application user
+    addgroup -g 1000 -S typo3; \
+    adduser -u 1000 -S typo3 -G typo3; \
+    # Create directory structure
+    mkdir -p \
+        /var/www/html/public \
+        /var/www/html/var \
+        /var/www/html/config \
+        /var/log/supervisor \
+    ; \
+    chown -R typo3:typo3 /var/www/html; \
+    # Ensure Nginx dirs exist and are writable
+    mkdir -p /run/nginx; \
+    chown -R typo3:typo3 /var/log/nginx /run/nginx
+
+# -----------------------------------------------------------------------------
+# PHP Configuration
+# -----------------------------------------------------------------------------
+COPY base/config/php/typo3.ini /usr/local/etc/php/conf.d/typo3.ini
+COPY base/config/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY base/config/php/php-fpm.conf /usr/local/etc/php-fpm.d/zz-typo3.conf
+
+# -----------------------------------------------------------------------------
+# Nginx Configuration
+# -----------------------------------------------------------------------------
+COPY base/config/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY base/config/nginx/typo3.conf /etc/nginx/http.d/default.conf
+
+# -----------------------------------------------------------------------------
+# Supervisor Configuration
+# -----------------------------------------------------------------------------
+COPY base/config/supervisor/supervisord.conf /etc/supervisord.conf
+
+# -----------------------------------------------------------------------------
+# Entrypoint
+# -----------------------------------------------------------------------------
+COPY base/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Environment variables for runtime configuration
+ENV TYPO3_DB_DRIVER=mysqli \
+    TYPO3_DB_HOST=db \
+    TYPO3_DB_PORT=3306 \
+    TYPO3_DB_NAME=typo3 \
+    TYPO3_DB_USERNAME=typo3 \
+    TYPO3_DB_PASSWORD="" \
+    TYPO3_SETUP_ADMIN_USERNAME=admin \
+    TYPO3_SETUP_ADMIN_PASSWORD="" \
+    TYPO3_SETUP_ADMIN_EMAIL="" \
+    TYPO3_SERVER_TYPE=apache \
+    TYPO3_BASE_URL="http://localhost" \
+    TYPO3_CONTEXT=Production \
+    PHP_MEMORY_LIMIT=512M \
+    PHP_MAX_EXECUTION_TIME=240 \
+    PHP_UPLOAD_MAX_FILESIZE=32M \
+    PHP_POST_MAX_SIZE=32M \
+    PHP_MAX_INPUT_VARS=1500
+
+WORKDIR /var/www/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost/typo3/install.php || curl -f http://localhost/ || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]
