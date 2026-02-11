@@ -212,21 +212,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build base image (local)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.base
-          load: true
-          tags: ghcr.io/dkd-dobberkau/base:8.3-nginx
-          build-args: |
-            PHP_VERSION=8.3
-          cache-from: type=gha
+        run: |
+          docker build -f Dockerfile.base \
+            -t ghcr.io/dkd-dobberkau/base:8.3-nginx \
+            --build-arg PHP_VERSION=8.3 \
+            .
 
-      - name: Start demo stack
+      - name: Build and start demo stack
         run: |
           PHP_VERSION=8.3 TYPO3_VERSION=13 HTTP_PORT=8080 \
             docker compose -f docker-compose.demo.yml up -d --build
