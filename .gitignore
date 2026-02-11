@@ -1,4 +1,5 @@
 *.tar.gz
+.DS_Store
 .codegraph/
 .playwright-mcp/
 CLAUDE.md
