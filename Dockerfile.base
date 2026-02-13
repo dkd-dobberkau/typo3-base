@@ -55,6 +55,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         php${PHP_VERSION}-cli \
         php${PHP_VERSION}-common \
+        php${PHP_VERSION}-curl \
         php${PHP_VERSION}-fpm \
         php${PHP_VERSION}-gd \
         php${PHP_VERSION}-intl \
@@ -111,6 +112,7 @@ RUN set -eux; \
     # Verify extensions
     php -m | grep -i gd; \
     php -m | grep -i intl; \
+    php -m | grep -i curl; \
     php -m | grep -i opcache
 
 # TYPO3 environment-based configuration (loaded at runtime via getenv)
