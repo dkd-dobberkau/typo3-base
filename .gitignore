@@ -3,3 +3,9 @@
 .codegraph/
 .playwright-mcp/
 CLAUDE.md
+/db-data/
+/redis-data/
+/typo3config/
+/typo3core/
+/vendor/
+/composer.json

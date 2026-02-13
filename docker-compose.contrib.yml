@@ -1,0 +1,91 @@
+# =============================================================================
+# TYPO3 Demo — Docker Compose
+#
+# Quick start:
+#   >>> Please see "Dockerfile.contrib"
+#
+#   $> docker compose -f docker-compose.contrib.yml up
+#
+# Then visit: http://localhost:28080 (high ports used to prevent DDEV clash)
+# Backend:   http://localhost:28080/typo3
+# Mailpit:   http://localhost:28025
+# Credentials: User: contrib | Password: Th4nx4H3lp1ng
+# =============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.contrib
+      args:
+        PHP_VERSION: "${PHP_VERSION:-8.2}"
+    ports:
+      - "${HTTP_PORT:-28080}:80"
+    environment:
+      TYPO3_CONTEXT: "Production"
+      TYPO3_DB_DRIVER: "mysqli"
+      TYPO3_DB_HOST: "db"
+      TYPO3_DB_PORT: "3306"
+      TYPO3_DB_NAME: "typo3"
+      TYPO3_DB_USERNAME: "typo3"
+      TYPO3_DB_PASSWORD: "typo3"
+      TYPO3_BASE_URL: "http://localhost:${HTTP_PORT:-28080}"
+      REDIS_HOST: "redis"
+      SMTP_HOST: "mailpit"
+      SMTP_PORT: "1025"
+    volumes:
+      - ./fileadmin:/var/www/html/public/fileadmin
+      - ./typo3var:/var/www/html/var
+      - ./typo3config:/var/www/html/config
+      - ./typo3core:/var/www/html/typo3core
+      - ./vendor:/var/www/html/vendor
+      - ./packages:/var/www/html/packages
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: "root"
+      MARIADB_DATABASE: "typo3"
+      MARIADB_USER: "typo3"
+      MARIADB_PASSWORD: "typo3"
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - ./db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - ./redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_UI_PORT:-28025}:8025"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/livez"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
