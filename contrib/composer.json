@@ -3,6 +3,8 @@
   "description": "TYPO3 Composer Development Kit",
   "type": "project",
   "license": "GPL-2.0-or-later",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "authors": [
     {
       "name": "Jochen Roth",
@@ -66,6 +68,26 @@
     "typo3/cms-webhooks": "@dev",
     "typo3/cms-workspaces": "@dev",
     "typo3/theme-camino": "@dev"
+  },
+  "require-dev": {
+    "ochorocho/tdk": "*",
+    "phpstan/phpstan": "*",
+    "friendsofphp/php-cs-fixer": "*"
+  },
+  "scripts": {
+    "tdk:setup": [
+      "@tdk:set-push-url",
+      "@tdk:enable-hooks",
+      "@tdk:set-commit-template"
+    ],
+    "tdk:doctor": "Ochorocho\\Tdk\\Scripts\\CommonScript::doctor",
+    "tdk:remove-hooks": "Ochorocho\\Tdk\\Scripts\\HookScript::remove",
+    "tdk:enable-hooks": "Ochorocho\\Tdk\\Scripts\\HookScript::enable",
+    "tdk:set-commit-template": "Ochorocho\\Tdk\\Scripts\\GitScript::setCommitTemplate",
+    "tdk:set-push-url": "Ochorocho\\Tdk\\Scripts\\GitScript::setGitConfig",
+    "tdk:apply-patch": "Ochorocho\\Tdk\\Scripts\\GitScript::applyPatch",
+    "tdk:checkout": "Ochorocho\\Tdk\\Scripts\\GitScript::checkoutBranch",
+    "tdk:help": "Ochorocho\\Tdk\\Scripts\\MessageScript::summary"
   },
   "config": {
     "allow-plugins": {
