@@ -35,8 +35,8 @@ RUN set -eux; \
     ; \
     # Install Introduction Package if requested
     if [ "${TYPO3_DEMO_CONTENT}" = "introduction" ]; then \
-        cd /tmp/typo3-build; \
-        composer require typo3/cms-introduction --no-interaction --no-dev --prefer-dist; \
+        composer require --working-dir=/tmp/typo3-build \
+            typo3/cms-introduction --no-interaction --no-dev --prefer-dist; \
     fi; \
     # Copy built project to working directory
     cp -a /tmp/typo3-build/. /var/www/html/; \
