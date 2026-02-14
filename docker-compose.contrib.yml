@@ -1,15 +1,20 @@
 # =============================================================================
-# TYPO3 Demo — Docker Compose
+# TYPO3 Core Contribution — Docker Compose
 #
 # Quick start:
-#   >>> Please see "Dockerfile.contrib"
-#
-#   $> docker compose -f docker-compose.contrib.yml up
+#   1.) Clone TYPO3 Core: git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core
+#   2.) Set your Gerrit username: export GERRIT_USERNAME=your_username
+#   3.) Start: docker compose -f docker-compose.contrib.yml up --build
 #
 # Then visit: http://localhost:28080 (high ports used to prevent DDEV clash)
 # Backend:   http://localhost:28080/typo3
 # Mailpit:   http://localhost:28025
 # Credentials: User: contrib | Password: Th4nx4H3lp1ng
+#
+# TDK commands (inside the container):
+#   docker compose -f docker-compose.contrib.yml exec web composer tdk:doctor
+#   docker compose -f docker-compose.contrib.yml exec web composer tdk:apply-patch
+#   docker compose -f docker-compose.contrib.yml exec web composer tdk:help
 # =============================================================================
 
 services:
@@ -22,7 +27,8 @@ services:
     ports:
       - "${HTTP_PORT:-28080}:80"
     environment:
-      TYPO3_CONTEXT: "Production"
+      GERRIT_USERNAME: "${GERRIT_USERNAME:-}"
+      TYPO3_CONTEXT: "Development"
       TYPO3_DB_DRIVER: "mysqli"
       TYPO3_DB_HOST: "db"
       TYPO3_DB_PORT: "3306"
