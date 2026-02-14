@@ -298,10 +298,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             PHP_VERSION=${{ matrix.php-version }}
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.CONTRIB_IMAGE_NAME }}:buildcache-${{ matrix.php-version }}
-          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2},mode=max', env.REGISTRY, env.CONTRIB_IMAGE_NAME, matrix.php-version) || 'type=gha,mode=max' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ---------------------------------------------------------------------------
   # Integration Tests (Demo Stack)
