@@ -11,6 +11,7 @@
 
 ARG PHP_VERSION=8.3
 ARG TYPO3_VERSION=13
+ARG TYPO3_DEMO_CONTENT=""
 
 # -----------------------------------------------------------------------------
 # Stage 1: Install TYPO3 via Composer
@@ -18,11 +19,12 @@ ARG TYPO3_VERSION=13
 FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-nginx AS build
 
 ARG TYPO3_VERSION=13
+ARG TYPO3_DEMO_CONTENT=""
 
 USER typo3
 WORKDIR /var/www/html
 
-# Create Composer project
+# Create Composer project and optionally install demo content
 RUN set -eux; \
     composer create-project \
         "typo3/cms-base-distribution:^${TYPO3_VERSION}" \
@@ -31,6 +33,11 @@ RUN set -eux; \
         --no-dev \
         --prefer-dist \
     ; \
+    # Install Introduction Package if requested
+    if [ "${TYPO3_DEMO_CONTENT}" = "introduction" ]; then \
+        cd /tmp/typo3-build; \
+        composer require typo3/cms-introduction --no-interaction --no-dev --prefer-dist; \
+    fi; \
     # Copy built project to working directory
     cp -a /tmp/typo3-build/. /var/www/html/; \
     rm -rf /tmp/typo3-build; \

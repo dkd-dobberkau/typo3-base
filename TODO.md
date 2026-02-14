@@ -28,15 +28,15 @@
 
 - [x] Multi-Arch Builds (linux/amd64 + linux/arm64) — Apple Silicon + Linux Server
 - [ ] PostgreSQL Compose-Variante — Base Image hat bereits pdo_pgsql
-- [ ] Production Compose — ohne Demo-Setup, fuer echte Projekte mit eigenem Code
+- [x] Production Compose — docker-compose.prod.yml mit Traefik SSL als Template
 - [x] Mailpit — Mail-Testing im Demo-Setup (SMTP + Web-UI)
-- [ ] TYPO3 Introduction Package als Demo-Content Option
+- [x] TYPO3 Introduction Package als Demo-Content Option (demo:13-intro Tags)
 - [ ] S3/Garage Storage — FAL-Driver fuer S3-kompatiblen Object Storage (fileadmin auf S3/Garage statt lokalem Volume)
 - [ ] PHP 8.5 Support — sobald Sury-Pakete verfuegbar
 
 ## Deployment
 
-- [ ] Traefik Reverse-Proxy mit SSL (docker-compose.prod.yml)
+- [x] Traefik Reverse-Proxy mit SSL (integriert in docker-compose.prod.yml)
 - [ ] Kubernetes Helm Chart
 - [x] GHCR Publishing — Images in die GitHub Container Registry pushen
 - [ ] Docker Hub Mirror — offizielle typo3/ Images

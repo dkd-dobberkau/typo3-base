@@ -7,7 +7,7 @@ TYPO3_VERSION ?= 13
 REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 
-.PHONY: help build-base build-base-fpm build-demo build-contrib build-all demo up down contrib clean test test-fpm
+.PHONY: help build-base build-base-fpm build-demo build-demo-intro build-contrib build-all demo up down contrib clean test test-fpm
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -39,6 +39,15 @@ build-demo: ## Build the demo image (requires base)
 		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
 		.
 
+build-demo-intro: ## Build the demo image with Introduction Package (requires base)
+	docker build -f Dockerfile.demo \
+		-t $(REGISTRY)/demo:$(TYPO3_VERSION)-intro-php$(PHP_VERSION) \
+		-t $(REGISTRY)/demo:$(TYPO3_VERSION)-intro \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
+		--build-arg TYPO3_DEMO_CONTENT=introduction \
+		.
+
 build-contrib: build-base-fpm ## Build the contrib image (requires base fpm)
 	docker build -f Dockerfile.contrib \
 		-t $(REGISTRY)/contrib:$(PHP_VERSION) \
@@ -66,6 +75,12 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=14
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=14
+	@echo "=== Building Demo Images (Introduction Package) ==="
+	$(MAKE) build-demo-intro PHP_VERSION=8.2 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.3 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.4 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.3 TYPO3_VERSION=14
+	$(MAKE) build-demo-intro PHP_VERSION=8.4 TYPO3_VERSION=14
 	@echo "=== Building Contrib Images ==="
 	$(MAKE) build-contrib PHP_VERSION=8.2
 	$(MAKE) build-contrib PHP_VERSION=8.3
@@ -140,4 +155,6 @@ clean: ## Remove all built images and volumes
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-fpm 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-php$(PHP_VERSION) 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION) 2>/dev/null || true
+	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-intro-php$(PHP_VERSION) 2>/dev/null || true
+	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-intro 2>/dev/null || true
 	docker rmi $(REGISTRY)/contrib:$(PHP_VERSION) 2>/dev/null || true
