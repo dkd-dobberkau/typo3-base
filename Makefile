@@ -7,7 +7,7 @@ TYPO3_VERSION ?= 13
 REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 
-.PHONY: help build-base build-base-fpm build-demo build-all demo up down clean test test-fpm
+.PHONY: help build-base build-base-fpm build-demo build-contrib build-all demo up down contrib clean test test-fpm
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -39,7 +39,13 @@ build-demo: ## Build the demo image (requires base)
 		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
 		.
 
-build-all: build-base build-base-fpm build-demo ## Build all images
+build-contrib: build-base-fpm ## Build the contrib image (requires base fpm)
+	docker build -f Dockerfile.contrib \
+		-t $(REGISTRY)/contrib:$(PHP_VERSION) \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		.
+
+build-all: build-base build-base-fpm build-demo build-contrib ## Build all images
 
 # ---------------------------------------------------------------------------
 # Build Matrix (all combinations)
@@ -60,6 +66,10 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=14
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=14
+	@echo "=== Building Contrib Images ==="
+	$(MAKE) build-contrib PHP_VERSION=8.2
+	$(MAKE) build-contrib PHP_VERSION=8.3
+	$(MAKE) build-contrib PHP_VERSION=8.4
 
 # ---------------------------------------------------------------------------
 # Run
@@ -68,6 +78,10 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
 demo: build-all ## Build and start the demo
 	PHP_VERSION=$(PHP_VERSION) TYPO3_VERSION=$(TYPO3_VERSION) HTTP_PORT=$(HTTP_PORT) \
 		docker compose -f docker-compose.demo.yml up --build
+
+contrib: build-contrib ## Build and start contrib environment
+	PHP_VERSION=$(PHP_VERSION) HTTP_PORT=$(HTTP_PORT) \
+		docker compose -f docker-compose.contrib.yml up --build
 
 up: ## Start demo (without rebuild)
 	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.demo.yml up -d
@@ -121,7 +135,9 @@ test-fpm: build-base-fpm ## Run smoke tests on base image (fpm-only variant)
 
 clean: ## Remove all built images and volumes
 	docker compose -f docker-compose.demo.yml down -v --rmi local 2>/dev/null || true
+	docker compose -f docker-compose.contrib.yml down -v --rmi local 2>/dev/null || true
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-nginx 2>/dev/null || true
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-fpm 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-php$(PHP_VERSION) 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION) 2>/dev/null || true
+	docker rmi $(REGISTRY)/contrib:$(PHP_VERSION) 2>/dev/null || true
