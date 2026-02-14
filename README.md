@@ -2,7 +2,7 @@
 
 [![Build and Push Docker Images](https://github.com/dkd-dobberkau/typo3-base/actions/workflows/build.yml/badge.svg)](https://github.com/dkd-dobberkau/typo3-base/actions/workflows/build.yml)
 
-Production-ready Docker images for TYPO3 CMS — Debian Bookworm + PHP (Sury packages).
+Production-ready Docker images for TYPO3 CMS — Debian Bookworm + PHP (Sury packages). Includes images for production, demo, and Core contribution.
 
 Multi-architecture support: `linux/amd64` + `linux/arm64` (Apple Silicon).
 
@@ -90,6 +90,52 @@ Or set your own via environment variables:
 TYPO3_SETUP_ADMIN_USERNAME=admin \
 TYPO3_SETUP_ADMIN_PASSWORD=MySecurePass1! \
 docker compose -f docker-compose.demo.yml up
+```
+
+### `dkd-dobberkau/contrib` — TYPO3 Core Contribution Image
+
+A ready-to-run environment for contributing to the TYPO3 Core. Uses the FPM base image with a host-side Git checkout of the TYPO3 mono repository, set up as a Composer-based project.
+
+**Available tags:**
+
+| Tag | PHP | Description |
+|-----|-----|-------------|
+| `8.2` | 8.2 | Minimum PHP for TYPO3 Core |
+| `8.3` | 8.3 | |
+| `8.4` | 8.4 | Latest PHP |
+| `latest` | 8.2 | Alias for `8.2` |
+
+**Quick start:**
+
+1. Create a working directory and clone the TYPO3 Core repository:
+
+```bash
+mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib
+git clone --branch=main ssh://YOUR_USERNAME@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core
+```
+
+Replace `YOUR_USERNAME` with your [my.typo3.org](https://my.typo3.org) username.
+
+2. Download the Compose file:
+
+```bash
+wget https://raw.githubusercontent.com/dkd-dobberkau/typo3-base/refs/heads/main/docker-compose.contrib.yml
+```
+
+3. Start the environment:
+
+```bash
+docker compose -f docker-compose.contrib.yml up --build
+```
+
+Open http://localhost:28080 — Backend at http://localhost:28080/typo3 — Mailpit at http://localhost:28025
+
+Credentials: `contrib` / `Th4nx4H3lp1ng`
+
+4. Install additional packages by entering the web container:
+
+```bash
+docker compose -f docker-compose.contrib.yml exec web composer require "georgringer/news:*"
 ```
 
 ## Environment Variables
@@ -194,8 +240,10 @@ debian:bookworm-slim + Sury PHP
      /        \
   [fpm]      [nginx]
 :8.3-fpm   :8.3-nginx  ← build targets (--target fpm / --target nginx)
-              │
-        Dockerfile.demo → dkd-dobberkau/demo:{TYPO3_VERSION}
+    │         │
+    │   Dockerfile.demo    → dkd-dobberkau/demo:{TYPO3_VERSION}
+    │
+Dockerfile.contrib → dkd-dobberkau/contrib:{PHP_VERSION}
 ```
 
 | Variant | Ports | Processes | Use case |
@@ -211,6 +259,7 @@ These images **complement** DDEV — they do not compete with it.
 |----------|-----------------|
 | Local development | **DDEV** |
 | Team development | **DDEV** |
+| TYPO3 Core contribution | **dkd-dobberkau/contrib** |
 | CI/CD pipelines | **dkd-dobberkau/base** (fpm variant) |
 | Demo & evaluation | **dkd-dobberkau/demo** |
 | Staging & production | **dkd-dobberkau/base** (with your project) |
@@ -246,6 +295,9 @@ make build-base-fpm
 # Build demo image (requires base)
 make build-demo
 
+# Build contrib image (requires base fpm)
+make build-contrib
+
 # Build everything
 make build-all
 
@@ -258,6 +310,9 @@ make build-base PHP_VERSION=8.4
 
 # Run demo
 make demo
+
+# Run contrib environment
+make contrib
 ```
 
 ## Contributing
