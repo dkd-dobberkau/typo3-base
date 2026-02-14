@@ -241,6 +241,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Build Demo Image (Introduction Package)
+  # Note: typo3/cms-introduction currently supports up to TYPO3 v13 only
   # ---------------------------------------------------------------------------
   build-demo-intro:
     runs-on: ubuntu-latest
@@ -259,11 +260,6 @@ jobs:
           - typo3-version: '13'
             php-version: '8.3'
           - typo3-version: '13'
-            php-version: '8.4'
-          # TYPO3 v14 (sprint releases / dev)
-          - typo3-version: '14'
-            php-version: '8.3'
-          - typo3-version: '14'
             php-version: '8.4'
 
     steps:
