@@ -25,6 +25,7 @@ USER typo3
 WORKDIR /var/www/html
 
 # Create Composer project and optionally install demo content
+# hadolint ignore=DL3003
 RUN set -eux; \
     composer create-project \
         "typo3/cms-base-distribution:^${TYPO3_VERSION}" \
@@ -36,7 +37,7 @@ RUN set -eux; \
     # Install Introduction Package if requested
     if [ "${TYPO3_DEMO_CONTENT}" = "introduction" ]; then \
         (cd /tmp/typo3-build && composer require \
-            typo3/cms-introduction --no-interaction --no-dev --prefer-dist); \
+            typo3/cms-introduction --no-interaction --update-no-dev --prefer-dist); \
     fi; \
     # Copy built project to working directory
     cp -a /tmp/typo3-build/. /var/www/html/; \
