@@ -8,6 +8,8 @@
 #       
 #       $> mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib && touch composer.json
 #
+#   @todo - Put this INTO the container. Use GitHub by default. Offer command to
+#           adjust this from host-side later, when wanting to commit.
 #   1.) Ensure you have a local GIT clone (otherwise the docker image will
 #       complain (replace "XXX" with your my.typo3.org username, that is a
 #       pre-requisite:
@@ -23,7 +25,7 @@
 #
 #       $> docker compose -f docker-compose.contrib.yml up --build
 #
-#   4.) You can reuqire composer packages by editing typo3config/composer.json,
+#   4.) You can require composer packages by editing typo3config/composer.json,
 #       and by entering the web container:
 #
 #       $> docker compose -f docker-compose.contrib.yml exec web composer require "georgringer/news:*"

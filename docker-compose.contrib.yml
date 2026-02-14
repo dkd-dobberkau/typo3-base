@@ -58,7 +58,7 @@ services:
       - "--character-set-server=utf8mb4"
       - "--collation-server=utf8mb4_unicode_ci"
     volumes:
-      - ./db-data:/var/lib/mysql
+      - db-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
@@ -70,7 +70,7 @@ services:
   redis:
     image: redis:7-alpine
     volumes:
-      - ./redis-data:/data
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -88,4 +88,15 @@ services:
       timeout: 3s
       retries: 3
     restart: unless-stopped
+
+volumes:
+  db-data:
+  redis-data:
+
+  #fileadmin: - local mount!
+  #typo3var: - local mount!
+  #typo3config: - local mount!
+  #typo3core: - local mount!
+  #vendor: - local mount!
+  #packages: -local mount!
 
