@@ -1,0 +1,12 @@
+[book]
+title = "TYPO3 Docker Images"
+authors = ["dkd Internet Service GmbH"]
+language = "en"
+multilingual = false
+src = "src"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/dkd-dobberkau/typo3-base"
+edit-url-template = "https://github.com/dkd-dobberkau/typo3-base/edit/main/docs/{path}"
