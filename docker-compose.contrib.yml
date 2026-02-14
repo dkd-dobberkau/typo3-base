@@ -17,6 +17,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.contrib
+      # @todo - once this works it needs to be built as an image
+      #         and be referenced here. This is not the file a
+      #         contributor is using, but a variation of it:
+      # image: dobberkau/contrib
       args:
         PHP_VERSION: "${PHP_VERSION:-8.2}"
     ports:

@@ -2,79 +2,76 @@
 
 set -e
 
-export MISSING_CORE="The typo3core directory is missing. Please first do a git clone:\n
-git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core\n
-(replace XXX with your my.typo3.org username!)"
-
 # Check if the directory exists
 if [ ! -d "/var/www/html/typo3core" ]; then
-  echo "ERR-01"
-  echo $MISSING_CORE
-  exit 1
+  echo "[i] No GIT repository found yet."
+  echo "[+] Cloning (anonymously, using GitHub) ..."
+  git clone --branch=main git@github.com:TYPO3/typo3.git typo3core
+else
+  echo "[i] GIT repository found."
 fi
 
 # Check if .git directory exists
 if [ ! -d "/var/www/html/typo3core/.git" ]; then
-  echo "ERR-02"
-  echo $MISSING_CORE
+  echo "[!] ERR-02"
+  echo "[!] Failed to clone repository. Check for errors above."
   exit 1
 fi
 
 # Check if .git/config file exists
 if [ ! -f "/var/www/html/typo3core/.git/config" ]; then
-  echo "ERR-03"
-  echo $MISSING_CORE
-  exit 1
-fi
-
-# Check if the config file contains the required URL pattern
-if ! grep -q "url = ssh://.*@review.typo3.org:29418/Packages/TYPO3.CMS.git" "/var/www/html/typo3core/.git/config"; then
-  echo "ERR-04"
-  echo $MISSING_CORE
+  echo "[!] ERR-03"
+  echo "[!] Failed to properly clone repository. Check for errors above."
   exit 1
 fi
 
 # All checks passed
-echo "TYPO3 git repository was found."
-echo "Checking if project is set up already."
+echo "[i] Performing composer steps"
 
 if [ ! -f "/var/www/html/config/composer.json" ] ; then
-  echo "Initialising composer."
-  echo "Place internal dist.composer.json into typo3config/composer.json"
-  echo "and symlinking to /var/www/html/composer.json"
+  echo "[+] Initialising composer.json"
+  echo "[i] Placing internal dist.composer.json into typo3config/composer.json"
+  echo "    and symlinking to /var/www/html/composer.json"
 
   cp /var/www/html/dist.composer.json /var/www/html/config/composer.json
   # @todo - Helper script to check if all CMS Core packages are listed in composer.json?
 fi
 
-ln -s /var/www/html/config/composer.json /var/www/html/composer.json
-
-if [ -f "/var/www/html/config/composer.lock" ] ; then
-  echo "Symlinking persisted composer.lock"
-  ln -s /var/www/html/config/composer.lock /var/www/html/composer.lock
+if [ -f /var/www/html/composer.json ] ; then
+  echo "[i] Using existing composer.json"
+else
+  echo "[+] Symlinking persisted config/composer.json to base composer.json"
+  ln -s /var/www/html/config/composer.json /var/www/html/composer.json
 fi
 
-echo "Ensuring composer is up to date"
-composer install
-
-if [ ! -f "/var/www/html/config/composer.lock" ] ; then
-  echo "Persisting composer.lock for next run"
-  cp /var/www/html/composer.lock /var/www/html/config/composer.lock
-  rm /var/www/html/composer.lock
-  ln -s /var/www/html/config/composer.lock /var/www/html/composer.lock
+if [ -f /var/www/html/composer.lock ] ; then
+  echo "[i] Using existing composer.lock"
+else
+  if [ -f /var/www/html/config/composer.lock ] ; then
+    echo "[+] Symlinking persisted composer.lock to base composer.lock"
+    ln -s /var/www/html/config/composer.lock /var/www/html/composer.lock
+  fi
 fi
-
 
 # Whenever our container starts we'll start the composer
 # installer to ensure our container is up to date, when GIT pulls
 # occurred.
+echo "[i] Ensuring composer matches composer.lock"
+composer install
 
-# The "outer" composer framework
-#composer install
+if [ ! -f "/var/www/html/config/composer.lock" ] ; then
+  echo "[+] Persisting composer.lock for next run to config/composer.lock"
+  cp /var/www/html/composer.lock /var/www/html/config/composer.lock
+  echo "[+] Replacing existing composer.lock with a symlink to persisted location"
+  rm /var/www/html/composer.lock
+  ln -s /var/www/html/config/composer.lock /var/www/html/composer.lock
+fi
 
-# The "inner" TYPO3 mono repo
-#cd typo3core
-#composer install
+# That was the "outer" composer framework, now let's do the "inner"
+# one, which is just based on GIT monorepo (and completely persisted)
+cd typo3core
+echo "[i] Ensuring TYPO3 core composer matches composer.lock"
+composer install
 
 echo "@todo - setup.demo.sh!"
 
