@@ -8,9 +8,11 @@
 #   FROM ghcr.io/typo3/base:8.3-nginx
 #   COPY --from=build /app /var/www/html
 #
-# Two variants available:
-#   --target fpm    → PHP-FPM only (for Kubernetes, bring your own web server)
-#   --target nginx  → PHP-FPM + Nginx + Supervisor (all-in-one)
+# Variants available (--target):
+#   fpm        → PHP-FPM only (for Kubernetes, bring your own web server)
+#   nginx      → PHP-FPM + Nginx + Supervisor (all-in-one)
+#   fpm-slim   → PHP-FPM only, no GraphicsMagick (use with external imgproxy)
+#   nginx-slim → PHP-FPM + Nginx, no GraphicsMagick (use with external imgproxy)
 #
 # =============================================================================
 
@@ -67,8 +69,6 @@ RUN set -eux; \
         php${PHP_VERSION}-opcache \
         php${PHP_VERSION}-apcu \
         php${PHP_VERSION}-redis \
-        # Image processing (TYPO3 requirement)
-        graphicsmagick \
         # Utilities for Composer and runtime
         git \
         unzip \
@@ -130,9 +130,22 @@ ENV TYPO3_CONTEXT=Production \
 WORKDIR /var/www/html
 
 # -----------------------------------------------------------------------------
+# Stage 1b: Full base with GraphicsMagick (default)
+# Slim variants (fpm-slim, nginx-slim) skip this stage and use php-base directly
+# -----------------------------------------------------------------------------
+FROM php-base AS php-base-full
+
+# hadolint ignore=DL3008
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends graphicsmagick; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
 # Stage 2: FPM-only variant (lean, no web server)
 # -----------------------------------------------------------------------------
-FROM php-base AS fpm
+FROM php-base-full AS fpm
 
 COPY base/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
@@ -148,7 +161,62 @@ CMD ["php-fpm", "--nodaemonize"]
 # -----------------------------------------------------------------------------
 # Stage 3: Nginx variant (bundled web server + supervisor)
 # -----------------------------------------------------------------------------
-FROM php-base AS nginx
+FROM php-base-full AS nginx
+
+# hadolint ignore=DL3008
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        nginx \
+        supervisor \
+    ; \
+    mkdir -p /run/nginx; \
+    chown -R typo3:typo3 /var/log/nginx /run/nginx; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+# Nginx Configuration
+COPY base/config/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY base/config/nginx/typo3.conf /etc/nginx/conf.d/default.conf
+
+# Supervisor Configuration
+COPY base/config/supervisor/supervisord.conf /etc/supervisord.conf
+
+COPY base/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost/healthz || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+
+# =============================================================================
+# Slim variants — no GraphicsMagick (use with external imgproxy service)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 4: FPM-only slim variant
+# -----------------------------------------------------------------------------
+FROM php-base AS fpm-slim
+
+COPY base/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD pgrep -f "php-fpm: master" > /dev/null || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["php-fpm", "--nodaemonize"]
+
+# -----------------------------------------------------------------------------
+# Stage 5: Nginx slim variant
+# -----------------------------------------------------------------------------
+FROM php-base AS nginx-slim
 
 # hadolint ignore=DL3008
 RUN set -eux; \
