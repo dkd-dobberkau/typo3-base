@@ -6,10 +6,10 @@
 #
 #   $> docker compose -f docker-compose.contrib.yml up
 #
-# Then visit: http://localhost:28080 (high ports used to prevent DDEV clash)
-# Backend:   http://localhost:28080/typo3
-# Mailpit:   http://localhost:28025
-# Credentials: User: contrib | Password: Th4nx4H3lp1ng
+# Then visit:  http://localhost:28080 (high ports used to prevent DDEV clash)
+# Backend:     http://localhost:28080/typo3
+# Mailpit:     http://localhost:28025
+# Credentials: User: contrib | Password: Th4nx-4H3lp1ng
 # =============================================================================
 
 services:
@@ -58,6 +58,10 @@ services:
       MARIADB_DATABASE: "typo3"
       MARIADB_USER: "typo3"
       MARIADB_PASSWORD: "typo3"
+    ports:
+      # allow host to connect to this DB for maintenance
+      # mysql -utypo3 -ptypo3 -h127.0.0.1 -P23306 typo3
+      - "23306:3306"
     command:
       - "--character-set-server=utf8mb4"
       - "--collation-server=utf8mb4_unicode_ci"
