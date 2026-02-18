@@ -7,7 +7,7 @@ TYPO3_VERSION ?= 13
 REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 
-.PHONY: help build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-demo-intro build-contrib build-all demo up down contrib clean test test-fpm test-slim test-fpm-slim
+.PHONY: help build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-demo-intro build-contrib build-all demo up down contrib contrib-up contrib-down clean test test-fpm test-slim test-fpm-slim
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -119,6 +119,12 @@ demo: build-all ## Build and start the demo
 contrib: build-contrib ## Build and start contrib environment
 	PHP_VERSION=$(PHP_VERSION) HTTP_PORT=$(HTTP_PORT) \
 		docker compose -f docker-compose.contrib.yml up --build
+
+contrib-up: ## Start contrib (without rebuild)
+	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.contrib.yml up -d
+
+contrib-down: ## Stop contrib
+	docker compose -f docker-compose.contrib.yml down
 
 up: ## Start demo (without rebuild)
 	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.demo.yml up -d

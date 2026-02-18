@@ -3,9 +3,11 @@
 # Uses a host-side(!) GIT checkout and set it up for Core contributions
 # as a composer-based project.
 #
+# Apache + PHP-FPM — supports .htaccess for authentic TYPO3 Core development.
+#
 # Usage:
 #   0.) Have an (empty) working directory with a dummy composer.json:
-#       
+#
 #       $> mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib && touch composer.json
 #
 #   1.) Ensure you have a local GIT clone (otherwise the docker image will
@@ -23,7 +25,7 @@
 #
 #       $> docker compose -f docker-compose.contrib.yml up --build
 #
-#   4.) You can reuqire composer packages by editing typo3config/composer.json,
+#   4.) You can require composer packages by editing typo3config/composer.json,
 #       and by entering the web container:
 #
 #       $> docker compose -f docker-compose.contrib.yml exec web composer require "georgringer/news:*"
@@ -33,23 +35,41 @@
 # Use minimum PHP version for contribution development
 ARG PHP_VERSION=8.2
 
-# -----------------------------------------------------------------------------
-# Stage 1: Install TYPO3 via Composer
-# -----------------------------------------------------------------------------
-FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-fpm AS build
+FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-fpm
 
 LABEL org.opencontainers.image.title="TYPO3 Contribution Image"
-LABEL org.opencontainers.image.description="Ready-to-run TYPO3 main contribution setup"
+LABEL org.opencontainers.image.description="Ready-to-run TYPO3 main contribution setup with Apache"
 
-USER typo3
+# Install Apache with PHP-FPM proxy support
+# hadolint ignore=DL3008
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends apache2; \
+    # Enable required modules
+    a2enmod proxy proxy_fcgi rewrite; \
+    # Disable default site
+    a2dissite 000-default; \
+    # Allow Apache (www-data) to access PHP-FPM socket (owned by typo3:typo3)
+    usermod -aG typo3 www-data; \
+    # Cleanup
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+# Apache vhost with AllowOverride All for .htaccess support
+COPY contrib/apache-typo3.conf /etc/apache2/sites-available/typo3.conf
+RUN a2ensite typo3
+
 WORKDIR /var/www/html
 
-# @todo - Make DB Driver configurable
 ENV TYPO3_CONTEXT=Development \
     TYPO3_DB_DRIVER=mysqli
 
-COPY --chmod=755 contrib/init.sh /var/www/html/init.sh
+COPY --chmod=755 contrib/init.sh /usr/local/bin/contrib-init.sh
 COPY contrib/composer.json /var/www/html/dist.composer.json
 
-ENTRYPOINT ["bash", "/var/www/html/init.sh"]
+EXPOSE 80
 
+# Use the base image entrypoint (handles PHP config substitution + permissions)
+# then hand off to contrib init script
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["/usr/local/bin/contrib-init.sh"]

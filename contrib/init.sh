@@ -1,74 +1,81 @@
 #!/bin/sh
-
 set -e
 
-export MISSING_CORE="The typo3core directory is missing. Please first do a git clone:\n
-git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core\n
-(replace XXX with your my.typo3.org username!)"
+# =============================================================================
+# TYPO3 Contribution — Init & Service Startup
+#
+# Runs as root (via docker-entrypoint.sh), handles:
+#   1. Validate typo3core git checkout
+#   2. Composer install (as typo3 user)
+#   3. Start PHP-FPM + Apache
+# =============================================================================
 
-# Check if the directory exists
-if [ ! -d "/var/www/html/typo3core" ]; then
-  echo "ERR-01"
-  echo $MISSING_CORE
-  exit 1
-fi
+MISSING_CORE="ERROR: The typo3core directory is missing or not a valid TYPO3 Core git clone.
 
-# Check if .git directory exists
+Please clone the TYPO3 Core repository first:
+
+  git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core
+
+(replace XXX with your my.typo3.org username)"
+
+# -----------------------------------------------------------------------------
+# 1. Validate TYPO3 Core git checkout
+# -----------------------------------------------------------------------------
+
 if [ ! -d "/var/www/html/typo3core/.git" ]; then
-  echo "ERR-02"
-  echo $MISSING_CORE
-  exit 1
+    echo "$MISSING_CORE"
+    exit 1
 fi
 
-# Check if .git/config file exists
-if [ ! -f "/var/www/html/typo3core/.git/config" ]; then
-  echo "ERR-03"
-  echo $MISSING_CORE
-  exit 1
-fi
-
-# Check if the config file contains the required URL pattern
 if ! grep -q "url = ssh://.*@review.typo3.org:29418/Packages/TYPO3.CMS.git" "/var/www/html/typo3core/.git/config"; then
-  echo "ERR-04"
-  echo $MISSING_CORE
-  exit 1
+    echo "$MISSING_CORE"
+    exit 1
 fi
 
-# All checks passed
-echo "TYPO3 git repository was found."
-echo "Checking if project is set up already."
+echo "TYPO3 Core git repository found."
 
-if [ ! -f "/var/www/html/typo3config/composer.json" ] ; then
-  echo "Initialising composer.\n"
-  echo "Place internal dist.composer.json into typo3config/composer.json"
-  echo "and symlinking to /var/www/html/composer.json"
+# -----------------------------------------------------------------------------
+# 2. Set up composer.json on first run
+# -----------------------------------------------------------------------------
 
-  cp /var/www/html/dist.composer.json /var/www/html/config/composer.json
-  ln -s /var/www/html/config/composer.json /var/www/html/composer.json
-  # @todo - Helper script to check if all CMS Core packages are listed in composer.json?
+if [ ! -f "/var/www/html/config/composer.json" ]; then
+    echo "First run — initialising composer project..."
+    mkdir -p /var/www/html/config
+    cp /var/www/html/dist.composer.json /var/www/html/config/composer.json
+    chown typo3:typo3 /var/www/html/config/composer.json
 fi
 
-# Whenever our container starts we'll start the composer
-# installer to ensure our container is up to date, when GIT pulls
-# occurred.
+# Symlink config/composer.json to project root (if not already present)
+if [ ! -f "/var/www/html/composer.json" ]; then
+    ln -s /var/www/html/config/composer.json /var/www/html/composer.json
+fi
 
-# The "outer" composer framework
-composer install
+# -----------------------------------------------------------------------------
+# 3. Composer install
+# -----------------------------------------------------------------------------
 
-# The "inner" TYPO3 mono repo
-cd typo3core
-composer install
+echo "Running composer install (outer project)..."
+su -s /bin/sh typo3 -c "cd /var/www/html && composer install --no-interaction"
 
-echo "All done. Start your engines!"
+echo "Running composer install (TYPO3 Core mono repo)..."
+su -s /bin/sh typo3 -c "cd /var/www/html/typo3core && composer install --no-interaction"
 
-# @todo: Check if config/system/settings.php exist
-# - if yes: container is probably set up. Don't touch.
-# - if no: Run TYPO3 setup with default username + password (setup-demo.sh reusable probably)
+# @todo: Check if config/system/settings.php exists
+# - if no: Run TYPO3 setup with default username + password
 
 # @todo: Execute maintenance:
 # vendor/bin/typo3 cache:flush
 # vendor/bin/typo3 extension:setup
 # vendor/bin/typo3 cache:warmup
 
-# Keep the container running
-sleep infinity
+echo "Composer setup complete."
+
+# -----------------------------------------------------------------------------
+# 4. Start services
+# -----------------------------------------------------------------------------
+
+echo "Starting PHP-FPM..."
+php-fpm &
+
+echo "Starting Apache..."
+exec apache2ctl -D FOREGROUND
