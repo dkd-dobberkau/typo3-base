@@ -20,6 +20,12 @@ fi
 
 # Check if .git directory exists
 if [ ! -d "${CORE_DIR}/.git" ]; then
+  echo "[i] Coredir exists, but no GIT repository found yet."
+  echo "[+] Cloning (anonymously, using GitHub) ..."
+  su -s /bin/sh typo3 -c "git clone --branch=main git@github.com:TYPO3/typo3.git typo3core"
+fi
+
+if [ ! -d "${CORE_DIR}/.git" ]; then
   echo "[!] ERR-02"
   echo "[!] Failed to clone repository. Check for errors above."
   exit 1
