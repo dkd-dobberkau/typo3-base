@@ -14,7 +14,7 @@
 
 services:
   web:
-    image: dkd-dobberkau/contrib
+    image: ghcr.io/dkd-dobberkau/contrib:8.2
     build:
       context: .
       args:
