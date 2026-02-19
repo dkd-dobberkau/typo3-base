@@ -9,3 +9,5 @@ CLAUDE.md
 /typo3core/
 /vendor/
 /composer.json
+/fileadmin/
+/typo3var/
