@@ -22,7 +22,7 @@ services:
     ports:
       - "${HTTP_PORT:-28080}:80"
     environment:
-      TYPO3_CONTEXT: "Production"
+      TYPO3_CONTEXT: "Development"
       TYPO3_DB_DRIVER: "mysqli"
       TYPO3_DB_HOST: "db"
       TYPO3_DB_PORT: "3306"
