@@ -30,35 +30,31 @@ chown -R typo3:typo3 /var/www/html/var /var/www/html/public/fileadmin /var/www/h
 
 # Run all TYPO3 commands as typo3 user
 echo "[demo-setup] Running TYPO3 setup..."
-su -s /bin/sh typo3 -c "
-    vendor/bin/typo3 setup \
-        --driver='${TYPO3_DB_DRIVER:-mysqli}' \
-        --host='${TYPO3_DB_HOST}' \
-        --port='${TYPO3_DB_PORT:-3306}' \
-        --dbname='${TYPO3_DB_NAME}' \
-        --username='${TYPO3_DB_USERNAME}' \
-        --password='${TYPO3_DB_PASSWORD}' \
-        --admin-username='${ADMIN_USERNAME}' \
-        --admin-user-password='${ADMIN_PASSWORD}' \
-        --admin-email='${ADMIN_EMAIL}' \
-        --server-type=other \
-        --no-interaction \
-        --force || true
+su -s /bin/sh typo3 -c 'vendor/bin/typo3 setup \
+    --driver="'"${TYPO3_DB_DRIVER:-mysqli}"'" \
+    --host="'"${TYPO3_DB_HOST}"'" \
+    --port="'"${TYPO3_DB_PORT:-3306}"'" \
+    --dbname="'"${TYPO3_DB_NAME}"'" \
+    --username="'"${TYPO3_DB_USERNAME}"'" \
+    --password="'"${TYPO3_DB_PASSWORD}"'" \
+    --admin-username="'"${ADMIN_USERNAME}"'" \
+    --admin-user-password="'"${ADMIN_PASSWORD}"'" \
+    --admin-email="'"${ADMIN_EMAIL}"'" \
+    --server-type=other \
+    --no-interaction \
+    --force' || true
 
-    echo '[demo-setup] Setting up extensions...'
-    vendor/bin/typo3 extension:setup || true
+echo "[demo-setup] Setting up extensions..."
+su -s /bin/sh typo3 -c 'vendor/bin/typo3 extension:setup' || true
 
-    echo '[demo-setup] Flushing caches...'
-    vendor/bin/typo3 cache:flush || true
-"
+echo "[demo-setup] Flushing caches..."
+su -s /bin/sh typo3 -c 'vendor/bin/typo3 cache:flush' || true
 
 # Configure SMTP mail transport if SMTP_HOST is set
 if [ -n "$SMTP_HOST" ]; then
     echo "[demo-setup] Configuring SMTP mail transport (${SMTP_HOST}:${SMTP_PORT:-1025})..."
-    su -s /bin/sh typo3 -c "
-        vendor/bin/typo3 configuration:set MAIL/transport smtp || true
-        vendor/bin/typo3 configuration:set MAIL/transport_smtp_server '${SMTP_HOST}:${SMTP_PORT:-1025}' || true
-    "
+    su -s /bin/sh typo3 -c 'vendor/bin/typo3 configuration:set MAIL/transport smtp' || true
+    su -s /bin/sh typo3 -c 'vendor/bin/typo3 configuration:set MAIL/transport_smtp_server "'"${SMTP_HOST}:${SMTP_PORT:-1025}"'"' || true
     echo "[demo-setup] SMTP configured"
 fi
 
