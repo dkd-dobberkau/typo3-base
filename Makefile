@@ -8,7 +8,7 @@ REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
 HTTP_PORT_CONTRIB ?= 28080
 
-.PHONY: help build-base build-base-fpm build-demo build-contrib build-all demo up down contrib-up contrib-down contrib-enter contrib-db-enter clean test test-fpm
+.PHONY: help build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-demo-intro build-contrib build-all demo up down contrib-up contrib-down contrib-enter contrib-db-enter clean test test-fpm test-slim test-fpm-slim
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -32,6 +32,20 @@ build-base-fpm: ## Build the base image (fpm-only variant)
 		--build-arg PHP_VERSION=$(PHP_VERSION) \
 		.
 
+build-base-slim: ## Build the slim base image (nginx, no GraphicsMagick)
+	docker build -f Dockerfile.base \
+		--target nginx-slim \
+		-t $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		.
+
+build-base-fpm-slim: ## Build the slim base image (fpm-only, no GraphicsMagick)
+	docker build -f Dockerfile.base \
+		--target fpm-slim \
+		-t $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		.
+
 build-demo: ## Build the demo image (requires base)
 	docker build -f Dockerfile.demo \
 		-t $(REGISTRY)/demo:$(TYPO3_VERSION)-php$(PHP_VERSION) \
@@ -40,13 +54,22 @@ build-demo: ## Build the demo image (requires base)
 		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
 		.
 
+build-demo-intro: ## Build the demo image with Introduction Package (requires base)
+	docker build -f Dockerfile.demo \
+		-t $(REGISTRY)/demo:$(TYPO3_VERSION)-intro-php$(PHP_VERSION) \
+		-t $(REGISTRY)/demo:$(TYPO3_VERSION)-intro \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		--build-arg TYPO3_VERSION=$(TYPO3_VERSION) \
+		--build-arg TYPO3_DEMO_CONTENT=introduction \
+		.
+
 build-contrib: build-base-fpm ## Build the contrib image (requires base fpm)
 	docker build -f Dockerfile.contrib \
 		-t $(REGISTRY)/contrib:$(PHP_VERSION) \
 		--build-arg PHP_VERSION=$(PHP_VERSION) \
 		.
 
-build-all: build-base build-base-fpm build-demo build-contrib ## Build all images
+build-all: build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-contrib ## Build all images
 
 # ---------------------------------------------------------------------------
 # Build Matrix (all combinations)
@@ -61,12 +84,26 @@ matrix: ## Build the full matrix (all PHP + TYPO3 versions, both variants)
 	$(MAKE) build-base-fpm PHP_VERSION=8.2
 	$(MAKE) build-base-fpm PHP_VERSION=8.3
 	$(MAKE) build-base-fpm PHP_VERSION=8.4
+	@echo "=== Building Base Images (nginx-slim) ==="
+	$(MAKE) build-base-slim PHP_VERSION=8.2
+	$(MAKE) build-base-slim PHP_VERSION=8.3
+	$(MAKE) build-base-slim PHP_VERSION=8.4
+	@echo "=== Building Base Images (fpm-slim) ==="
+	$(MAKE) build-base-fpm-slim PHP_VERSION=8.2
+	$(MAKE) build-base-fpm-slim PHP_VERSION=8.3
+	$(MAKE) build-base-fpm-slim PHP_VERSION=8.4
 	@echo "=== Building Demo Images ==="
 	$(MAKE) build-demo PHP_VERSION=8.2 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=13
 	$(MAKE) build-demo PHP_VERSION=8.3 TYPO3_VERSION=14
 	$(MAKE) build-demo PHP_VERSION=8.4 TYPO3_VERSION=14
+	@echo "=== Building Demo Images (Introduction Package) ==="
+	$(MAKE) build-demo-intro PHP_VERSION=8.2 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.3 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.4 TYPO3_VERSION=13
+	$(MAKE) build-demo-intro PHP_VERSION=8.3 TYPO3_VERSION=14
+	$(MAKE) build-demo-intro PHP_VERSION=8.4 TYPO3_VERSION=14
 	@echo "=== Building Contrib Images ==="
 	$(MAKE) build-contrib PHP_VERSION=8.2
 	$(MAKE) build-contrib PHP_VERSION=8.3
@@ -80,10 +117,6 @@ demo: build-all ## Build and start the demo
 	PHP_VERSION=$(PHP_VERSION) TYPO3_VERSION=$(TYPO3_VERSION) HTTP_PORT=$(HTTP_PORT) \
 		docker compose -f docker-compose.demo.yml up --build
 
-contrib: build-contrib ## Build and start contrib environment
-	PHP_VERSION=$(PHP_VERSION) HTTP_PORT=$(HTTP_PORT) \
-		docker compose -f docker-compose.contrib.yml up --build
-
 up: ## Start demo (without rebuild)
 	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.demo.yml up -d
 
@@ -96,7 +129,7 @@ contrib-up: ## Start contribution setup
 contrib-enter: ## Enter contribution setup
 	docker compose -f docker-compose.contrib.yml exec web sh
 
-contrib-db-enter: ## Enter contribution setup
+contrib-db-enter: ## Enter contribution DB
 	docker compose -f docker-compose.contrib.yml exec db sh
 
 contrib-down: ## Stop contribution setup
@@ -142,6 +175,42 @@ test-fpm: build-base-fpm ## Run smoke tests on base image (fpm-only variant)
 	docker run --rm --entrypoint gm $(REGISTRY)/base:$(PHP_VERSION)-fpm version | head -1
 	@echo "=== All fpm variant tests passed ==="
 
+test-slim: build-base-slim ## Run smoke tests on slim base image (nginx, no GraphicsMagick)
+	@echo "=== Testing PHP extensions ==="
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q gd && echo "✓ gd"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q intl && echo "✓ intl"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -qi opcache && echo "✓ opcache"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q mysqli && echo "✓ mysqli"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q pdo_mysql && echo "✓ pdo_mysql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q pdo_pgsql && echo "✓ pdo_pgsql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q redis && echo "✓ redis"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q apcu && echo "✓ apcu"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -m | grep -q zip && echo "✓ zip"
+	@echo "=== Testing Composer ==="
+	docker run --rm --entrypoint composer $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim --version
+	@echo "=== Testing Nginx ==="
+	docker run --rm --entrypoint sh $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -c 'sed -i "s|\$$TYPO3_CONTEXT|Production|g" /etc/nginx/conf.d/default.conf && nginx -t'
+	@echo "=== Verifying NO GraphicsMagick ==="
+	docker run --rm --entrypoint sh $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim -c '! command -v gm' && echo "✓ gm not installed (slim)"
+	@echo "=== All nginx-slim variant tests passed ==="
+
+test-fpm-slim: build-base-fpm-slim ## Run smoke tests on slim base image (fpm-only, no GraphicsMagick)
+	@echo "=== Testing PHP extensions ==="
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q gd && echo "✓ gd"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q intl && echo "✓ intl"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -qi opcache && echo "✓ opcache"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q mysqli && echo "✓ mysqli"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q pdo_mysql && echo "✓ pdo_mysql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q pdo_pgsql && echo "✓ pdo_pgsql"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q redis && echo "✓ redis"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q apcu && echo "✓ apcu"
+	docker run --rm --entrypoint php $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -m | grep -q zip && echo "✓ zip"
+	@echo "=== Testing Composer ==="
+	docker run --rm --entrypoint composer $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim --version
+	@echo "=== Verifying NO GraphicsMagick ==="
+	docker run --rm --entrypoint sh $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim -c '! command -v gm' && echo "✓ gm not installed (slim)"
+	@echo "=== All fpm-slim variant tests passed ==="
+
 # ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
@@ -151,6 +220,10 @@ clean: ## Remove all built images and volumes
 	docker compose -f docker-compose.contrib.yml down -v --rmi local 2>/dev/null || true
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-nginx 2>/dev/null || true
 	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-fpm 2>/dev/null || true
+	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-nginx-slim 2>/dev/null || true
+	docker rmi $(REGISTRY)/base:$(PHP_VERSION)-fpm-slim 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-php$(PHP_VERSION) 2>/dev/null || true
 	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION) 2>/dev/null || true
+	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-intro-php$(PHP_VERSION) 2>/dev/null || true
+	docker rmi $(REGISTRY)/demo:$(TYPO3_VERSION)-intro 2>/dev/null || true
 	docker rmi $(REGISTRY)/contrib:$(PHP_VERSION) 2>/dev/null || true

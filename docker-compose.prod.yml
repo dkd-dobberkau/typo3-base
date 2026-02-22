@@ -1,0 +1,145 @@
+# =============================================================================
+# TYPO3 Production Stack — Docker Compose
+#
+# A ready-to-use production template with Traefik reverse proxy and
+# automatic Let's Encrypt SSL certificates.
+#
+# Usage:
+#   1.) Copy this file and .env.prod.example into your TYPO3 project
+#   2.) Rename .env.prod.example to .env and adjust the values
+#   3.) Build your project image based on the TYPO3 base image:
+#
+#       FROM ghcr.io/dkd-dobberkau/base:8.3-nginx
+#       COPY --chown=typo3:typo3 . /var/www/html
+#
+#   4.) Start the stack:
+#
+#       docker compose -f docker-compose.prod.yml up -d
+#
+# Your site will be available at https://${DOMAIN} with auto-renewed SSL.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Traefik — Reverse Proxy with automatic SSL
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.3
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # HTTP → HTTPS redirect
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Let's Encrypt
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      # Logging
+      - "--log.level=WARN"
+      - "--accesslog=false"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - traefik-certs:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # TYPO3 Web — Your project image
+  # ---------------------------------------------------------------------------
+  web:
+    image: ghcr.io/dkd-dobberkau/base:${PHP_VERSION:-8.3}-nginx
+    # Uncomment below to build from a local Dockerfile instead:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   args:
+    #     PHP_VERSION: "${PHP_VERSION:-8.3}"
+    environment:
+      TYPO3_CONTEXT: "${TYPO3_CONTEXT:-Production}"
+      TYPO3_DB_DRIVER: "mysqli"
+      TYPO3_DB_HOST: "${TYPO3_DB_HOST:-db}"
+      TYPO3_DB_PORT: "${TYPO3_DB_PORT:-3306}"
+      TYPO3_DB_NAME: "${TYPO3_DB_NAME:-typo3}"
+      TYPO3_DB_USERNAME: "${TYPO3_DB_USERNAME:-typo3}"
+      TYPO3_DB_PASSWORD: "${TYPO3_DB_PASSWORD}"
+      TYPO3_ENCRYPTION_KEY: "${TYPO3_ENCRYPTION_KEY}"
+      TYPO3_TRUSTED_HOSTS_PATTERN: "${TYPO3_TRUSTED_HOSTS_PATTERN:-.*}"
+      REDIS_HOST: "${REDIS_HOST:-redis}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      TYPO3_MAIL_TRANSPORT: "${TYPO3_MAIL_TRANSPORT:-}"
+      TYPO3_MAIL_SMTP_SERVER: "${TYPO3_MAIL_SMTP_SERVER:-}"
+      TYPO3_MAIL_SMTP_USERNAME: "${TYPO3_MAIL_SMTP_USERNAME:-}"
+      TYPO3_MAIL_SMTP_PASSWORD: "${TYPO3_MAIL_SMTP_PASSWORD:-}"
+      TYPO3_MAIL_FROM_ADDRESS: "${TYPO3_MAIL_FROM_ADDRESS:-}"
+      TYPO3_MAIL_FROM_NAME: "${TYPO3_MAIL_FROM_NAME:-}"
+      PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT:-512M}"
+      PHP_MAX_EXECUTION_TIME: "${PHP_MAX_EXECUTION_TIME:-240}"
+      PHP_UPLOAD_MAX_FILESIZE: "${PHP_UPLOAD_MAX_FILESIZE:-32M}"
+      PHP_POST_MAX_SIZE: "${PHP_POST_MAX_SIZE:-32M}"
+      PHP_MAX_INPUT_VARS: "${PHP_MAX_INPUT_VARS:-1500}"
+    volumes:
+      - fileadmin:/var/www/html/public/fileadmin
+      - typo3var:/var/www/html/var
+      - typo3config:/var/www/html/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.typo3.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.typo3.entrypoints=websecure"
+      - "traefik.http.routers.typo3.tls.certresolver=letsencrypt"
+      - "traefik.http.services.typo3.loadbalancer.server.port=80"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Database — MariaDB
+  # ---------------------------------------------------------------------------
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+      MARIADB_DATABASE: "${TYPO3_DB_NAME:-typo3}"
+      MARIADB_USER: "${TYPO3_DB_USERNAME:-typo3}"
+      MARIADB_PASSWORD: "${TYPO3_DB_PASSWORD}"
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — Cache Backend
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  fileadmin:
+  typo3var:
+  typo3config:
+  redis-data:
+  traefik-certs:

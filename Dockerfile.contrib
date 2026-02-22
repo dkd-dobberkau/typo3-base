@@ -8,7 +8,7 @@
 #
 # Usage:
 #   0.) Have an (empty) working directory:
-#       
+#
 #       $> mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib
 #
 #   1.) Now you need the `docker-compose.contrib-public.yml` file, get it from
@@ -38,13 +38,7 @@ ARG PHP_VERSION=8.2
 FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-nginx AS build
 
 LABEL org.opencontainers.image.title="TYPO3 Contribution Image"
-LABEL org.opencontainers.image.description="Ready-to-run TYPO3 main contribution setup"
-
-WORKDIR /var/www/html
-
-# @todo - Make DB Driver configurable
-ENV TYPO3_CONTEXT=Development \
-    TYPO3_DB_DRIVER=mysqli
+LABEL org.opencontainers.image.description="Ready-to-run TYPO3 main contribution setup with Apache"
 
 # Minimal subset of docker-entrypoint.sh initialization,
 # note that MAX_EXECUTION_TIME = 0 for contrib/dev setup!
@@ -99,6 +93,3 @@ COPY --chown=typo3:typo3 contrib/composer.json /var/www/html/dist.composer.json
 COPY --chown=typo3:typo3 contrib/gitmessage.txt /var/www/html/dist.gitmessage.txt
 
 EXPOSE 80
-
-ENTRYPOINT ["bash", "/var/www/html/init.sh"]
-

@@ -41,6 +41,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      setup:
+        condition: service_started
     restart: unless-stopped
 
   # Initial setup container (runs once, then exits)

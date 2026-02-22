@@ -1,5 +1,4 @@
 #!/bin/sh
-
 set -e
 
 # Note we're running as root at this point
