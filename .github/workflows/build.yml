@@ -393,8 +393,10 @@ jobs:
 
       - name: Build and start demo stack
         run: |
-          PHP_VERSION=8.3 TYPO3_VERSION=13 HTTP_PORT=8080 \
+          TYPO3_CONTEXT=Development PHP_VERSION=8.3 TYPO3_VERSION=13 HTTP_PORT=8080 \
             docker compose -f docker-compose.demo.yml up -d --build
+          # TYPO3_CONTEXT=Development bypasses the entrypoint encryption key check
+          # since settings.php is created by the setup container at runtime
 
       - name: Wait for setup to complete
         timeout-minutes: 5
