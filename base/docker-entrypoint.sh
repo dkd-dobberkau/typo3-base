@@ -18,6 +18,33 @@ echo " PHP $(php -r 'echo PHP_VERSION;') | ${VARIANT} | Debian"
 echo "================================================"
 
 # -----------------------------------------------------------------------------
+# Startup validation (only when TYPO3 is installed)
+# -----------------------------------------------------------------------------
+if [ -f /var/www/html/vendor/bin/typo3 ]; then
+    TYPO3_CONTEXT="${TYPO3_CONTEXT:-Production}"
+    SETTINGS_FILE="/var/www/html/config/system/settings.php"
+
+    # Production context requires an encryption key (via env var or settings.php)
+    if [ "$TYPO3_CONTEXT" = "Production" ]; then
+        if [ -z "$TYPO3_ENCRYPTION_KEY" ] && [ ! -f "$SETTINGS_FILE" ]; then
+            echo "[entrypoint] ERROR: Production context requires either:"
+            echo "[entrypoint]   - TYPO3_ENCRYPTION_KEY environment variable, or"
+            echo "[entrypoint]   - config/system/settings.php with encryptionKey configured"
+            echo "[entrypoint] Set TYPO3_CONTEXT=Development to bypass this check."
+            exit 1
+        fi
+    fi
+
+    # Warn about ephemeral storage for critical directories
+    for dir in /var/www/html/public/fileadmin /var/www/html/var; do
+        if [ -d "$dir" ] && ! mountpoint -q "$dir" 2>/dev/null; then
+            echo "[entrypoint] WARNING: $dir is not on a persistent volume."
+            echo "[entrypoint]          Data will be lost when the container is removed."
+        fi
+    done
+fi
+
+# -----------------------------------------------------------------------------
 # Substitute environment variables in PHP config
 # Note the Dockerfile.contrib does something similar (but more lax)
 # -----------------------------------------------------------------------------
