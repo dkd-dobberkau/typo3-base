@@ -49,7 +49,7 @@ jobs:
           dockerfile: Dockerfile.contrib
 
   # ---------------------------------------------------------------------------
-  # Build Base Image (nginx + fpm variants)
+  # Build Base Image (nginx + fpm variants, full + slim)
   # ---------------------------------------------------------------------------
   build-base:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
       fail-fast: false
       matrix:
         php-version: ['8.2', '8.3', '8.4']
-        variant: ['nginx', 'fpm']
+        variant: ['nginx', 'fpm', 'nginx-slim', 'fpm-slim']
 
     steps:
       - name: Checkout
@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: ['nginx', 'fpm']
+        variant: ['nginx', 'fpm', 'nginx-slim', 'fpm-slim']
 
     steps:
       - name: Checkout
@@ -157,13 +157,20 @@ jobs:
         run: docker run --rm --entrypoint composer ghcr.io/dkd-dobberkau/base:8.3-${{ matrix.variant }} --version
 
       - name: Test Nginx config
-        if: matrix.variant == 'nginx'
+        if: matrix.variant == 'nginx' || matrix.variant == 'nginx-slim'
         run: |
-          docker run --rm --entrypoint sh ghcr.io/dkd-dobberkau/base:8.3-nginx \
+          docker run --rm --entrypoint sh ghcr.io/dkd-dobberkau/base:8.3-${{ matrix.variant }} \
             -c 'sed -i "s|\$TYPO3_CONTEXT|Production|g" /etc/nginx/conf.d/default.conf && nginx -t'
 
       - name: Test GraphicsMagick
+        if: matrix.variant == 'nginx' || matrix.variant == 'fpm'
         run: docker run --rm --entrypoint gm ghcr.io/dkd-dobberkau/base:8.3-${{ matrix.variant }} version | head -1
+
+      - name: Verify NO GraphicsMagick (slim)
+        if: matrix.variant == 'nginx-slim' || matrix.variant == 'fpm-slim'
+        run: |
+          docker run --rm --entrypoint sh ghcr.io/dkd-dobberkau/base:8.3-${{ matrix.variant }} \
+            -c '! command -v gm' && echo "✓ gm not installed (slim)"
 
   # ---------------------------------------------------------------------------
   # Build Demo Image
@@ -446,6 +453,8 @@ jobs:
         image:
           - 'dkd-dobberkau/base:8.3-nginx'
           - 'dkd-dobberkau/base:8.3-fpm'
+          - 'dkd-dobberkau/base:8.3-nginx-slim'
+          - 'dkd-dobberkau/base:8.3-fpm-slim'
           - 'dkd-dobberkau/demo:13-php8.3'
           - 'dkd-dobberkau/demo:13-intro-php8.3'
           - 'dkd-dobberkau/contrib:8.2'
