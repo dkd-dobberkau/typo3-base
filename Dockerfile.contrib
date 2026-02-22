@@ -3,42 +3,64 @@
 # Uses a host-side(!) GIT checkout and set it up for Core contributions
 # as a composer-based project.
 #
-# Apache + PHP-FPM — supports .htaccess for authentic TYPO3 Core development.
+# @TODO - When finalized, this must go into a readme.
+# @TODO - Adjust github builds
 #
 # Usage:
-#   0.) Have an (empty) working directory with a dummy composer.json:
+#   0.) Have an (empty) working directory:
 #
-#       $> mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib && touch composer.json
+#       $> mkdir ~/TYPO3-Contrib && cd ~/TYPO3-Contrib
 #
-#   1.) Ensure you have a local GIT clone (otherwise the docker image will
-#       complain (replace "XXX" with your my.typo3.org username, that is a
-#       pre-requisite:
-#
-#       $> git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core
-#
-#   2.) Now you need the `docker-compose.contrib.yml` file, get it from
+#   1.) Now you need the `docker-compose.contrib-public.yml` file, get it from
 #       this repository:
 #
-#       $> wget https://raw.githubusercontent.com/dkd-dobberkau/typo3-base/refs/heads/main/docker-compose.contrib.yml
+#       $> wget https://raw.githubusercontent.com/dkd-dobberkau/typo3-base/refs/heads/main/docker-compose.contrib-public.yml
 #
-#   3.) Now start the docker framework:
+#   2.) Now start the docker framework:
 #
-#       $> docker compose -f docker-compose.contrib.yml up --build
+#       $> docker compose -f docker-compose.contrib-public.yml up
 #
-#   4.) You can require composer packages by editing typo3config/composer.json,
-#       and by entering the web container:
+#   3.) See the logs and access your setup via http://localhost:28080/typo3/
 #
-#       $> docker compose -f docker-compose.contrib.yml exec web composer require "georgringer/news:*"
+#   4.) You can require composer packages by entering the web container to execute "composer" commands
+#       (the `typo3config/composer.json` file will be persisted via mount)
+#
+#       $> docker compose -f docker-compose.contrib-public.yml exec web composer require "georgringer/news:*"
 #
 # =============================================================================
 
 # Use minimum PHP version for contribution development
 ARG PHP_VERSION=8.2
 
-FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-fpm
+# -----------------------------------------------------------------------------
+# Stage 1: Install TYPO3 via Composer
+# -----------------------------------------------------------------------------
+FROM ghcr.io/dkd-dobberkau/base:${PHP_VERSION}-nginx AS build
 
 LABEL org.opencontainers.image.title="TYPO3 Contribution Image"
 LABEL org.opencontainers.image.description="Ready-to-run TYPO3 main contribution setup with Apache"
+
+# Minimal subset of docker-entrypoint.sh initialization,
+# note that MAX_EXECUTION_TIME = 0 for contrib/dev setup!
+RUN bash -c '\
+    if [ -f "/etc/php/${PHP_VERSION}/fpm/conf.d/99-typo3.ini" ]; then \
+        sed -i \
+            -e "s|\${PHP_MEMORY_LIMIT}|${PHP_MEMORY_LIMIT:-512M}|g" \
+            -e "s|\${PHP_MAX_EXECUTION_TIME}|${PHP_MAX_EXECUTION_TIME:-0}|g" \
+            -e "s|\${PHP_UPLOAD_MAX_FILESIZE}|${PHP_UPLOAD_MAX_FILESIZE:-32M}|g" \
+            -e "s|\${PHP_POST_MAX_SIZE}|${PHP_POST_MAX_SIZE:-32M}|g" \
+            -e "s|\${PHP_MAX_INPUT_VARS}|${PHP_MAX_INPUT_VARS:-1500}|g" \
+            "/etc/php/${PHP_VERSION}/fpm/conf.d/99-typo3.ini"; \
+    fi && \
+    if [ -f "/etc/php/${PHP_VERSION}/cli/conf.d/99-typo3.ini" ]; then \
+        sed -i \
+            -e "s|\${PHP_MEMORY_LIMIT}|${PHP_MEMORY_LIMIT:-512M}|g" \
+            -e "s|\${PHP_MAX_EXECUTION_TIME}|${PHP_MAX_EXECUTION_TIME:-0}|g" \
+            -e "s|\${PHP_UPLOAD_MAX_FILESIZE}|${PHP_UPLOAD_MAX_FILESIZE:-32M}|g" \
+            -e "s|\${PHP_POST_MAX_SIZE}|${PHP_POST_MAX_SIZE:-32M}|g" \
+            -e "s|\${PHP_MAX_INPUT_VARS}|${PHP_MAX_INPUT_VARS:-1500}|g" \
+            "/etc/php/${PHP_VERSION}/cli/conf.d/99-typo3.ini"; \
+    fi'
 
 # Install Apache with PHP-FPM proxy support
 # hadolint ignore=DL3008
@@ -46,7 +68,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends apache2; \
     # Enable required modules
-    a2enmod proxy proxy_fcgi rewrite; \
+    a2enmod proxy proxy_fcgi rewrite headers filter expires mime alias deflate setenvif; \
     # Disable default site
     a2dissite 000-default; \
     # Allow Apache (www-data) to access PHP-FPM socket (owned by typo3:typo3)
@@ -56,20 +78,18 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # Apache vhost with AllowOverride All for .htaccess support
-COPY contrib/apache-typo3.conf /etc/apache2/sites-available/typo3.conf
+COPY contrib/config/apache/apache-typo3.conf /etc/apache2/sites-available/typo3.conf
 RUN a2ensite typo3
 
-WORKDIR /var/www/html
+COPY contrib/config/supervisor/supervisord.conf /etc/supervisord.conf
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]
 
-ENV TYPO3_CONTEXT=Development \
-    TYPO3_DB_DRIVER=mysqli
-
-COPY --chmod=755 contrib/init.sh /usr/local/bin/contrib-init.sh
-COPY contrib/composer.json /var/www/html/dist.composer.json
+#@todo - This is probably needed for linux; where to set this
+#        so that the handoff to init.sh entrypoint still works?
+#        and the files below (and these by init.sh should be attributed to typo3)
+#USER typo3
+COPY --chown=typo3:typo3 --chmod=755 contrib/init.sh /var/www/html/init.sh
+COPY --chown=typo3:typo3 contrib/composer.json /var/www/html/dist.composer.json
+COPY --chown=typo3:typo3 contrib/gitmessage.txt /var/www/html/dist.gitmessage.txt
 
 EXPOSE 80
-
-# Use the base image entrypoint (handles PHP config substitution + permissions)
-# then hand off to contrib init script
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["/usr/local/bin/contrib-init.sh"]

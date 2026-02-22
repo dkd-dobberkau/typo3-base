@@ -1,81 +1,172 @@
 #!/bin/sh
 set -e
 
-# =============================================================================
-# TYPO3 Contribution — Init & Service Startup
-#
-# Runs as root (via docker-entrypoint.sh), handles:
-#   1. Validate typo3core git checkout
-#   2. Composer install (as typo3 user)
-#   3. Start PHP-FPM + Apache
-# =============================================================================
+# Note we're running as root at this point
+# So file creation of files usable on the host need to use
+# the chown/su "typo3" user
 
-MISSING_CORE="ERROR: The typo3core directory is missing or not a valid TYPO3 Core git clone.
+WORK_DIR="/var/www/html"
+CORE_DIR="${WORK_DIR}/typo3core"
 
-Please clone the TYPO3 Core repository first:
-
-  git clone --branch=main ssh://XXX@review.typo3.org:29418/Packages/TYPO3.CMS.git typo3core
-
-(replace XXX with your my.typo3.org username)"
-
-# -----------------------------------------------------------------------------
-# 1. Validate TYPO3 Core git checkout
-# -----------------------------------------------------------------------------
-
-if [ ! -d "/var/www/html/typo3core/.git" ]; then
-    echo "$MISSING_CORE"
-    exit 1
+# Check if the directory exists
+if [ ! -d "${CORE_DIR}" ]; then
+  echo "[i] No GIT repository found yet."
+  echo "[+] Cloning (anonymously, using GitHub) ..."
+  su -s /bin/sh typo3 -c "git clone --branch=main git@github.com:TYPO3/typo3.git typo3core"
+else
+  echo "[i] GIT repository found."
 fi
 
-if ! grep -q "url = ssh://.*@review.typo3.org:29418/Packages/TYPO3.CMS.git" "/var/www/html/typo3core/.git/config"; then
-    echo "$MISSING_CORE"
-    exit 1
+# Check if .git directory exists
+if [ ! -d "${CORE_DIR}/.git" ]; then
+  echo "[i] Coredir exists, but no GIT repository found yet."
+  echo "[+] Cloning (anonymously, using GitHub) ..."
+  su -s /bin/sh typo3 -c "git clone --branch=main git@github.com:TYPO3/typo3.git typo3core"
 fi
 
-echo "TYPO3 Core git repository found."
-
-# -----------------------------------------------------------------------------
-# 2. Set up composer.json on first run
-# -----------------------------------------------------------------------------
-
-if [ ! -f "/var/www/html/config/composer.json" ]; then
-    echo "First run — initialising composer project..."
-    mkdir -p /var/www/html/config
-    cp /var/www/html/dist.composer.json /var/www/html/config/composer.json
-    chown typo3:typo3 /var/www/html/config/composer.json
+if [ ! -d "${CORE_DIR}/.git" ]; then
+  echo "[!] ERR-02"
+  echo "[!] Failed to clone repository. Check for errors above."
+  exit 1
 fi
 
-# Symlink config/composer.json to project root (if not already present)
-if [ ! -f "/var/www/html/composer.json" ]; then
-    ln -s /var/www/html/config/composer.json /var/www/html/composer.json
+# Check if .git/config file exists
+if [ ! -f "${CORE_DIR}/.git/config" ]; then
+  echo "[!] ERR-03"
+  echo "[!] Failed to properly clone repository. Check for errors above."
+  exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# 3. Composer install
-# -----------------------------------------------------------------------------
+# All checks passed
+echo "[i] Performing composer steps"
 
-echo "Running composer install (outer project)..."
-su -s /bin/sh typo3 -c "cd /var/www/html && composer install --no-interaction"
+if [ ! -f "${WORK_DIR}/config/composer.json" ] ; then
+  echo "[+] Initialising composer.json"
+  echo "[i] Placing internal dist.composer.json into typo3config/composer.json"
+  echo "    and symlinking to ${WORK_DIR}/composer.json"
 
-echo "Running composer install (TYPO3 Core mono repo)..."
-su -s /bin/sh typo3 -c "cd /var/www/html/typo3core && composer install --no-interaction"
+  cp "${WORK_DIR}/dist.composer.json" "${WORK_DIR}/config/composer.json"
+  chown typo3:typo3 "${WORK_DIR}/config/composer.json"
+  # @todo - Helper script to check if all CMS Core packages are listed in composer.json?
+fi
 
-# @todo: Check if config/system/settings.php exists
-# - if no: Run TYPO3 setup with default username + password
+if [ -f "${WORK_DIR}/composer.json" ] ; then
+  echo "[i] Using existing composer.json"
+else
+  echo "[+] Symlinking persisted config/composer.json to base composer.json"
+  ln -s "${WORK_DIR}/config/composer.json" "${WORK_DIR}/composer.json"
+fi
 
-# @todo: Execute maintenance:
-# vendor/bin/typo3 cache:flush
-# vendor/bin/typo3 extension:setup
-# vendor/bin/typo3 cache:warmup
+if [ -f "${WORK_DIR}/composer.lock" ] ; then
+  echo "[i] Using existing composer.lock"
+else
+  if [ -f "${WORK_DIR}/config/composer.lock" ] ; then
+    echo "[+] Symlinking persisted composer.lock to base composer.lock"
+    ln -s "${WORK_DIR}/config/composer.lock" "${WORK_DIR}/composer.lock"
+  fi
+fi
 
-echo "Composer setup complete."
+# Whenever our container starts we'll start the composer
+# installer to ensure our container is up to date, when GIT pulls
+# occurred.
+echo "[i] Ensuring composer matches composer.lock"
+su -s /bin/sh typo3 -c "composer install --no-interaction"
 
-# -----------------------------------------------------------------------------
-# 4. Start services
-# -----------------------------------------------------------------------------
+if [ ! -f "${WORK_DIR}/config/composer.lock" ] ; then
+  echo "[+] Persisting composer.lock for next run to config/composer.lock"
+  cp "${WORK_DIR}/composer.lock" "${WORK_DIR}/config/composer.lock"
+  chown typo3:typo3 "${WORK_DIR}/config/composer.lock"
+  echo "[+] Replacing existing composer.lock with a symlink to persisted location"
+  rm "${WORK_DIR}/composer.lock"
+  ln -s "${WORK_DIR}/config/composer.lock" "${WORK_DIR}/composer.lock"
+fi
 
-echo "Starting PHP-FPM..."
-php-fpm &
+# That was the "outer" composer framework, now let's do the "inner"
+# one, which is just based on GIT monorepo (and completely persisted)
+cd "${CORE_DIR}"
+echo "[i] Ensuring TYPO3 core composer matches composer.lock"
+su -s /bin/sh typo3 -c "composer install --no-interaction"
 
-echo "Starting Apache..."
-exec apache2ctl -D FOREGROUND
+# Set Gerrit push URL if GERRIT_USERNAME is provided (via docker-compose yaml)
+if [ -n "${GERRIT_USERNAME}" ]; then
+  echo "[i] Setting Gerrit push URL for user: ${GERRIT_USERNAME}"
+  cd "${CORE_DIR}"
+  su -s /bin/sh typo3 -c 'git remote set-url --push origin "ssh://${GERRIT_USERNAME}@review.typo3.org:29418/Packages/TYPO3.CMS.git"'
+  su -s /bin/sh typo3 -c 'git config user.name "${GERRIT_USERNAME}"'
+  cd "${WORK_DIR}"
+  echo "[+] Gerrit push URL configured."
+else
+  echo "[i] GERRIT_USERNAME not set — skipping Gerrit push URL configuration."
+  echo "    You can set it later via: docker compose exec web composer tdk:set-push-url"
+fi
+
+echo "[i] Adapting git config (URL, commit message, hooks) ..."
+su -s /bin/sh typo3 -c "git config branch.autosetuprebase remote"
+su -s /bin/sh typo3 -c 'git config remote.origin.push "+refs/heads/main:refs/for/main"'
+if [ ! -f "${CORE_DIR}/.git/gitmessage.txt" ]; then
+  echo "[+] Persisted .git/gitmessage.txt"
+  cp "${WORK_DIR}/dist.gitmessage.txt" "${CORE_DIR}/.git/gitmessage.txt"
+  chown -R typo3:typo3 "${CORE_DIR}/.git/gitmessage.txt"
+  su -s /bin/sh typo3 -c 'git config commit.template ".git/gitmessage.txt"'
+fi
+if [ -d "${CORE_DIR}/Build/git-hooks" ]; then
+  echo "[i] Installing Git hooks ..."
+  if [ -f "${CORE_DIR}/Build/git-hooks/commit-msg" ]; then
+    cp "${CORE_DIR}/Build/git-hooks/commit-msg" "${CORE_DIR}/.git/hooks/commit-msg"
+    chmod 755 "${CORE_DIR}/.git/hooks/commit-msg"
+    chown typo3:typo3 "${CORE_DIR}/.git/hooks/commit-msg"
+    echo "[+] commit-msg hook installed"
+  fi
+  if [ -f "${CORE_DIR}/Build/git-hooks/unix+mac/pre-commit" ]; then
+    cp "${CORE_DIR}/Build/git-hooks/unix+mac/pre-commit" "${CORE_DIR}/.git/hooks/pre-commit"
+    chmod 755 "${CORE_DIR}/.git/hooks/pre-commit"
+    chown typo3:typo3 "${CORE_DIR}/.git/hooks/pre-commit"
+    echo "[+] pre-commit hook installed"
+  fi
+fi
+
+cd "${WORK_DIR}"
+if [ ! -f "${WORK_DIR}/config/system/settings.php" ]; then
+  echo "[i] Running TYPO3 initial setup ..."
+  su -s /bin/bash typo3 -c 'vendor/bin/typo3 setup \
+    --driver="${TYPO3_DB_DRIVER:-mysqli}" \
+    --host="${TYPO3_DB_HOST:-db}" \
+    --port="${TYPO3_DB_PORT:-3306}" \
+    --dbname="${TYPO3_DB_NAME:-typo3}" \
+    --username="${TYPO3_DB_USERNAME:-typo3}" \
+    --password="${TYPO3_DB_PASSWORD:-typo3}" \
+    --admin-username="${TYPO3_ADMIN_USERNAME:-contrib}" \
+    --admin-user-password="${TYPO3_ADMIN_PASSWORD:-Th4nx-4H3lp1ng}" \
+    --admin-email="${TYPO3_ADMIN_EMAIL:-contrib@example.com}" \
+    --project-name="TYPO3 Core Contribution" \
+    --create-site="${TYPO3_BASE_URL:-http://localhost:28080}" \
+    --server-type=other \
+    --no-interaction \
+    --force
+  '
+  echo "[+] TYPO3 setup complete."
+else
+  echo "[i] TYPO3 already configured (settings.php exists)."
+fi
+
+echo "[i] TYPO3 maintenance tasks ..."
+su -s /bin/bash typo3 -c 'vendor/bin/typo3 extension:setup || true'
+su -s /bin/bash typo3 -c 'vendor/bin/typo3 cache:flush || true'
+su -s /bin/bash typo3 -c 'vendor/bin/typo3 cache:warmup || true'
+
+echo "[+] Using default .htaccess rules ..."
+cp "${CORE_DIR}/typo3/sysext/install/Resources/Private/FolderStructureTemplateFiles/root-htaccess" "${WORK_DIR}/public/.htaccess"
+
+echo "================================================"
+echo " TYPO3 Contribution is ready for YOU!"
+echo ""
+echo " Frontend:  ${TYPO3_BASE_URL:-http://localhost:28080}"
+echo " Backend:   ${TYPO3_BASE_URL:-http://localhost:28080}/typo3"
+echo " Username:  ${ADMIN_USERNAME:-contrib}"
+echo " Password:  ${ADMIN_PASSWORD:-Th4nx-4H3lp1ng}"
+echo " Mailpit:   http://localhost:28025"
+echo "================================================"
+
+# Keep the container running with supervisord
+# Note we're running as root at this point
+exec "$@"

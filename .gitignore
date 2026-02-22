@@ -10,3 +10,5 @@ CLAUDE.md
 /vendor/
 /composer.json
 docs/book/
+/fileadmin/
+/typo3var/

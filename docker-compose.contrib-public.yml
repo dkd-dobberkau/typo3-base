@@ -4,7 +4,7 @@
 # Quick start:
 #   >>> Please see "Dockerfile.contrib"
 #
-#   $> docker compose -f docker-compose.contrib.yml up
+#   $> docker compose -f docker-compose.contrib-public.yml up
 #
 # Then visit:  http://localhost:28080 (high ports used to prevent DDEV clash)
 # Backend:     http://localhost:28080/typo3
@@ -14,16 +14,9 @@
 
 services:
   web:
-    # IMPORTANT: This is the BUILD file for the repository. It requires build artifacts.
-    # Check out `docker-compose.contrib-public.yml` to use for your boilerplate. It uses:
-    # image: dkd-dobberkau/contrib
+    image: ghcr.io/dkd-dobberkau/contrib:8.2
     build:
       context: .
-      dockerfile: Dockerfile.contrib
-      # @todo - once this works it needs to be built as an image
-      #         and be referenced here. This is not the file a
-      #         contributor is using, but a variation of it:
-      # image: dobberkau/contrib
       args:
         PHP_VERSION: "${PHP_VERSION:-8.2}"
     ports:

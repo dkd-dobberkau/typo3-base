@@ -19,6 +19,7 @@ echo "================================================"
 
 # -----------------------------------------------------------------------------
 # Substitute environment variables in PHP config
+# Note the Dockerfile.contrib does something similar (but more lax)
 # -----------------------------------------------------------------------------
 envsubst_php() {
     local file="$1"

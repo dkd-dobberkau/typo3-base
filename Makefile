@@ -6,8 +6,9 @@ PHP_VERSION ?= 8.3
 TYPO3_VERSION ?= 13
 REGISTRY ?= ghcr.io/dkd-dobberkau
 HTTP_PORT ?= 8080
+HTTP_PORT_CONTRIB ?= 28080
 
-.PHONY: help build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-demo-intro build-contrib build-all demo up down contrib contrib-up contrib-down clean test test-fpm test-slim test-fpm-slim
+.PHONY: help build-base build-base-fpm build-base-slim build-base-fpm-slim build-demo build-demo-intro build-contrib build-all demo up down contrib-up contrib-down contrib-enter contrib-db-enter clean test test-fpm test-slim test-fpm-slim
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -116,21 +117,23 @@ demo: build-all ## Build and start the demo
 	PHP_VERSION=$(PHP_VERSION) TYPO3_VERSION=$(TYPO3_VERSION) HTTP_PORT=$(HTTP_PORT) \
 		docker compose -f docker-compose.demo.yml up --build
 
-contrib: build-contrib ## Build and start contrib environment
-	PHP_VERSION=$(PHP_VERSION) HTTP_PORT=$(HTTP_PORT) \
-		docker compose -f docker-compose.contrib.yml up --build
-
-contrib-up: ## Start contrib (without rebuild)
-	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.contrib.yml up -d
-
-contrib-down: ## Stop contrib
-	docker compose -f docker-compose.contrib.yml down
-
 up: ## Start demo (without rebuild)
 	HTTP_PORT=$(HTTP_PORT) docker compose -f docker-compose.demo.yml up -d
 
 down: ## Stop demo
 	docker compose -f docker-compose.demo.yml down
+
+contrib-up: ## Start contribution setup
+	HTTP_PORT=$(HTTP_PORT_CONTRIB) docker compose -f docker-compose.contrib.yml up --build
+
+contrib-enter: ## Enter contribution setup
+	docker compose -f docker-compose.contrib.yml exec web sh
+
+contrib-db-enter: ## Enter contribution DB
+	docker compose -f docker-compose.contrib.yml exec db sh
+
+contrib-down: ## Stop contribution setup
+	docker compose -f docker-compose.contrib.yml down
 
 # ---------------------------------------------------------------------------
 # Test
