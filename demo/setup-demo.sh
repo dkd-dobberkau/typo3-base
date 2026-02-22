@@ -41,6 +41,7 @@ su -s /bin/sh typo3 -c "
         --admin-username='${ADMIN_USERNAME}' \
         --admin-user-password='${ADMIN_PASSWORD}' \
         --admin-email='${ADMIN_EMAIL}' \
+        --server-type=other \
         --no-interaction \
         --force || true
 
